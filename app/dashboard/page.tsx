@@ -67,7 +67,7 @@ export default async function Dashboard() {
               style={{ background: 'var(--blue-light)', border: '1px solid rgba(59,110,245,0.15)' }}
             >
               <p className="text-[12px] font-medium mb-0.5" style={{ color: 'var(--blue)' }}>send SOL to this address</p>
-              <p className="text-[11px]" style={{ color: 'var(--blue)' }}>min 0.1 SOL recommended to launch & deploy</p>
+              <p className="text-[11px]" style={{ color: 'var(--blue)' }}>min ~0.1 SOL recommended (fee + buy + reserve)</p>
             </div>
           </div>
         </div>

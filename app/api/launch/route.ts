@@ -21,8 +21,8 @@ const RPC_URL = process.env.RPC_URL || 'https://api.mainnet-beta.solana.com'
 
 // SOL costs for the full launch+deploy flow
 const LAUNCH_FEE_SOL  = 0.025  // pump.fun token creation + tx fees
-const DEPLOY_MIN_SOL  = 0.075  // minimum left in wallet after launch (covers agent cycles + tx fees)
-const TOTAL_MIN_SOL   = LAUNCH_FEE_SOL + DEPLOY_MIN_SOL // ~0.1 SOL baseline (+ initial buy on top)
+const DEPLOY_MIN_SOL  = 0.05   // minimum left in wallet after launch (covers agent tx fees)
+const TOTAL_MIN_SOL   = LAUNCH_FEE_SOL + DEPLOY_MIN_SOL // ~0.075 SOL baseline (+ initial buy on top)
 
 export async function POST(req: NextRequest) {
   const tag = '[LAUNCH]'
