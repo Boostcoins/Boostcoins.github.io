@@ -15,9 +15,14 @@ import {
 import BN from 'bn.js'
 import { getSession } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
-import { keypairFromEncrypted } from '@/lib/wallet'
+import { keypairFromEncrypted, getWalletBalance } from '@/lib/wallet'
 
 const RPC_URL = process.env.RPC_URL || 'https://api.mainnet-beta.solana.com'
+
+// SOL costs for the full launch+deploy flow
+const LAUNCH_FEE_SOL  = 0.025  // pump.fun token creation + tx fees
+const DEPLOY_MIN_SOL  = 0.03   // minimum needed in wallet after launch to keep agent running
+const TOTAL_MIN_SOL   = LAUNCH_FEE_SOL + DEPLOY_MIN_SOL // 0.055 SOL baseline (+ initial buy on top)
 
 export async function POST(req: NextRequest) {
   const tag = '[LAUNCH]'
@@ -59,6 +64,30 @@ export async function POST(req: NextRequest) {
     const keypair = keypairFromEncrypted(walletRow.encrypted_private_key)
     console.log(`${tag} wallet: ${walletRow.public_key}`)
 
+    // Pre-flight balance check — must have enough for launch fee + initial buy + deploy minimum
+    const initialBuySol = parseFloat(initialBuyStr || '0')
+    const requiredSol = TOTAL_MIN_SOL + Math.max(0, initialBuySol)
+
+    let balance = 0
+    try {
+      balance = await getWalletBalance(walletRow.public_key)
+    } catch (err) {
+      console.error(`${tag} failed to fetch balance: ${err instanceof Error ? err.message : err}`)
+      return NextResponse.json({ error: 'failed to check wallet balance' }, { status: 500 })
+    }
+
+    console.log(`${tag} balance: ${balance.toFixed(4)} SOL — required: ${requiredSol.toFixed(4)} SOL`)
+
+    if (balance < requiredSol) {
+      const needed = requiredSol - balance
+      return NextResponse.json(
+        {
+          error: `insufficient balance. wallet has ${balance.toFixed(4)} SOL but needs ${requiredSol.toFixed(4)} SOL (launch ~0.025 + initial buy ${initialBuySol} + agent minimum 0.03). add ${needed.toFixed(4)} more SOL.`,
+        },
+        { status: 402 }
+      )
+    }
+
     // Step 1: Upload image + metadata to pump.fun IPFS
     console.log(`${tag} uploading metadata to pump.fun IPFS`)
     const uploadForm = new FormData()
@@ -90,12 +119,12 @@ export async function POST(req: NextRequest) {
     const connection = new Connection(RPC_URL, 'confirmed')
     const sdk = new OnlinePumpSdk(connection)
     const mint = Keypair.generate()
-    const initialBuySol = parseFloat(initialBuyStr || '0')
 
     console.log(`${tag} creating token on pump.fun — mint: ${mint.publicKey.toBase58()} | initial buy: ${initialBuySol} SOL`)
 
     const global = await sdk.fetchGlobal()
     const solAmount = new BN(Math.floor(Math.max(initialBuySol, 0) * 1e9))
+
 
     let ixArray: import('@solana/web3.js').TransactionInstruction[]
 

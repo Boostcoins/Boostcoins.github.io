@@ -3,7 +3,7 @@ import { getSession } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getWalletBalance } from '@/lib/wallet'
 
-const MIN_SOL_TO_DEPLOY = 0.05
+const MIN_SOL_TO_DEPLOY = 0.03
 
 export async function POST(req: NextRequest) {
   const tag = '[DEPLOY]'
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
   if (balance < MIN_SOL_TO_DEPLOY) {
     return NextResponse.json(
-      { error: `insufficient balance. wallet has ${balance.toFixed(4)} SOL — minimum ${MIN_SOL_TO_DEPLOY} SOL required` },
+      { error: `insufficient balance. wallet has ${balance.toFixed(4)} SOL — minimum ${MIN_SOL_TO_DEPLOY} SOL needed to run agent cycles` },
       { status: 402 }
     )
   }
