@@ -101,13 +101,16 @@ export async function POST(req: NextRequest) {
 
     if (initialBuySol > 0) {
       // For a brand-new token the bonding curve doesn't exist on-chain yet,
-      // so we can't call fetchBuyState. Instead we calculate using pump.fun's
-      // known initial virtual reserves (these are constant for every new token).
+      // so we can't call fetchBuyState. Calculate using pump.fun's known initial
+      // virtual reserves (constant for every new token).
+      // pump.fun charges a 1% trading fee — only solAmount*0.99 enters the curve.
+      // We also apply a small 1% safety buffer to avoid slippage failures.
       const INIT_VIRTUAL_TOKENS = new BN('1073000191000000') // 1,073,000,191 tokens
       const INIT_VIRTUAL_SOL   = new BN('30000000000')       // 30 SOL in lamports
-      const tokenAmount = INIT_VIRTUAL_TOKENS.mul(solAmount).div(INIT_VIRTUAL_SOL.add(solAmount))
+      const effectiveSol = solAmount.muln(98).divn(100)      // ~2% off for fee + buffer
+      const tokenAmount = INIT_VIRTUAL_TOKENS.mul(effectiveSol).div(INIT_VIRTUAL_SOL.add(effectiveSol))
 
-      console.log(`${tag} initial buy token estimate: ${tokenAmount.toString()} (for ${initialBuySol} SOL)`)
+      console.log(`${tag} initial buy token estimate: ${tokenAmount.toString()} (for ${initialBuySol} SOL, effective: ${effectiveSol.toString()} lamports)`)
 
       const result = await PUMP_SDK.createAndBuyInstructions({
         global,
