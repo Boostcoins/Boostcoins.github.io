@@ -7,7 +7,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const [agentRes, statsRes, logsRes, memoriesRes] = await Promise.all([
     supabaseAdmin
       .from('agents')
-      .select('id, name, token_name, token_ca, persona, mood, status, last_think, created_at')
+      .select('id, name, token_name, token_ca, persona, mood, status, last_think, created_at, image_url, twitter, telegram, website')
       .eq('id', id)
       .single(),
     supabaseAdmin

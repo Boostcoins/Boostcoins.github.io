@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  const { name, tokenName, tokenCa, persona } = await req.json()
+  const { name, tokenName, tokenCa, persona, imageUrl, twitter, telegram, website } = await req.json()
 
   if (!name || !tokenName || !tokenCa || !persona) {
     return NextResponse.json({ error: 'all fields required' }, { status: 400 })
@@ -76,6 +76,10 @@ export async function POST(req: NextRequest) {
       token_ca: tokenCa.trim(),
       persona: persona.trim(),
       status: 'active',
+      image_url: imageUrl || null,
+      twitter: twitter || null,
+      telegram: telegram || null,
+      website: website || null,
     })
     .select('id')
     .single()

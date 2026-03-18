@@ -113,7 +113,9 @@ export async function POST(req: NextRequest) {
 
     const ipfsData = await ipfsRes.json()
     const metadataUri = ipfsData.metadataUri
-    console.log(`${tag} metadata uploaded: ${metadataUri}`)
+    // pump.fun IPFS response may include imageUri directly, otherwise derive from metadata
+    const imageUrl: string = ipfsData.imageUri || ipfsData.image || ''
+    console.log(`${tag} metadata uploaded: ${metadataUri} | image: ${imageUrl || '(none)'}`)
 
     // Step 2: Create token on pump.fun
     const connection = new Connection(RPC_URL, 'confirmed')
@@ -191,7 +193,7 @@ export async function POST(req: NextRequest) {
     const mintAddress = mint.publicKey.toBase58()
     console.log(`${tag} token created! mint: ${mintAddress} | tx: ${sig}`)
 
-    return NextResponse.json({ mint: mintAddress })
+    return NextResponse.json({ mint: mintAddress, imageUrl, metadataUri })
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     const stack = err instanceof Error ? err.stack : undefined

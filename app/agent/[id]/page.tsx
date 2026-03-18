@@ -4,11 +4,38 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 
-interface Agent { id: string; name: string; token_name: string; token_ca: string; persona: string; mood: string; status: string; last_think: string; created_at: string }
+interface Agent {
+  id: string; name: string; token_name: string; token_ca: string; persona: string
+  mood: string; status: string; last_think: string; created_at: string
+  image_url?: string; twitter?: string; telegram?: string; website?: string
+}
 interface Stats { total_claimed: number; total_burned: number; total_lp: number; last_cycle: string; last_strategy: string }
 interface Log { id: string; title: string; body: string; mood: string; created_at: string }
 interface Memory { id: string; content: string; created_at: string }
 interface Input { id: string; content: string; created_at: string }
+
+function XIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 300 300" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M178.57 127.15L290.27 0h-26.46l-97.03 110.38L89.34 0H0l117.13 166.93L0 300.1h26.46l102.4-116.59 81.8 116.59H300L178.57 127.15zm-36.26 41.27-11.87-16.61L36.16 19.5h40.67l76.2 106.69 11.87 16.61 99.04 138.6h-40.67l-80.96-113.38z"/>
+    </svg>
+  )
+}
+function TelegramIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.28 13.99l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.868.569z"/>
+    </svg>
+  )
+}
+function WebIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+    </svg>
+  )
+}
 
 export default function AgentPage() {
   const { id } = useParams<{ id: string }>()
@@ -75,6 +102,11 @@ export default function AgentPage() {
   )
 
   const daysAlive = Math.floor((Date.now() - new Date(agent.created_at).getTime()) / (1000 * 60 * 60 * 24))
+  const socialLinks = [
+    agent.twitter  && { href: agent.twitter,  icon: <XIcon />,        label: 'X' },
+    agent.telegram && { href: agent.telegram, icon: <TelegramIcon />, label: 'Telegram' },
+    agent.website  && { href: agent.website,  icon: <WebIcon />,      label: 'Website' },
+  ].filter(Boolean) as { href: string; icon: React.ReactNode; label: string }[]
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
@@ -88,30 +120,81 @@ export default function AgentPage() {
       <div className="max-w-5xl mx-auto px-6 sm:px-10 pt-24 pb-24">
 
         {/* Agent header */}
-        <div className="flex items-start justify-between gap-6 flex-wrap mb-10">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-start gap-5 mb-10 flex-wrap">
+          {/* Token image */}
+          {agent.image_url && (
+            <div className="shrink-0 w-16 h-16 rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+              <img src={agent.image_url} alt={agent.token_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
+          )}
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-1 flex-wrap">
               <h1 className="font-bold tracking-tight" style={{ fontSize: 'clamp(1.8rem,4vw,2.8rem)', color: 'var(--dark)' }}>
                 {agent.name}
               </h1>
               {agent.status === 'active' && (
                 <span className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full"
                   style={{ color: 'var(--blue)', background: 'var(--blue-light)', border: '1px solid rgba(59,110,245,0.2)' }}>
-                  <span className="w-1 h-1 rounded-full inline-block" style={{ background: 'var(--blue)' }} />
+                  <span className="w-1 h-1 rounded-full inline-block animate-pulse" style={{ background: 'var(--blue)' }} />
                   live
                 </span>
               )}
+              {agent.mood && (
+                <span className="text-[12px] font-mono px-2.5 py-1 rounded-full" style={{ background: 'var(--surface)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
+                  {agent.mood}
+                </span>
+              )}
             </div>
-            <p className="text-[14px] mb-1" style={{ color: 'var(--muted)' }}>${agent.token_name}</p>
-            <p className="text-[12px] font-mono" style={{ color: 'var(--muted)' }}>{agent.token_ca}</p>
-          </div>
-          <div className="text-right">
-            {agent.mood && (
-              <span className="inline-block text-[12px] font-mono px-3 py-1.5 rounded-full mb-2" style={{ background: 'var(--blue-light)', color: 'var(--blue)' }}>
-                mood: {agent.mood}
-              </span>
+
+            <div className="flex items-center gap-4 flex-wrap">
+              <p className="text-[13px] font-mono" style={{ color: 'var(--muted)' }}>
+                ${agent.token_name} · <span className="text-[11px]">{agent.token_ca.slice(0, 8)}...{agent.token_ca.slice(-4)}</span>
+              </p>
+              <p className="text-[12px]" style={{ color: 'var(--muted)' }}>{daysAlive}d alive</p>
+            </div>
+
+            {/* Social links */}
+            {socialLinks.length > 0 && (
+              <div className="flex items-center gap-2 mt-3">
+                {socialLinks.map((link) => (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={link.label}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px]"
+                    style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }}
+                  >
+                    {link.icon}
+                    <span>{link.label}</span>
+                  </a>
+                ))}
+                <a
+                  href={`https://pump.fun/coin/${agent.token_ca}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px]"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }}
+                >
+                  pump.fun ↗
+                </a>
+              </div>
             )}
-            <p className="text-[12px]" style={{ color: 'var(--muted)' }}>{daysAlive} days alive</p>
+            {socialLinks.length === 0 && (
+              <div className="flex items-center gap-2 mt-3">
+                <a
+                  href={`https://pump.fun/coin/${agent.token_ca}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px]"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }}
+                >
+                  pump.fun ↗
+                </a>
+              </div>
+            )}
           </div>
         </div>
 

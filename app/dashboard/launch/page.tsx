@@ -35,6 +35,7 @@ export default function LaunchAndDeploy() {
     setStatusMsg('uploading metadata to ipfs...')
 
     let mintAddress = ''
+    let imageUrl = ''
     try {
       const fd = new FormData()
       fd.append('name', token.name)
@@ -57,6 +58,7 @@ export default function LaunchAndDeploy() {
       }
 
       mintAddress = launchData.mint
+      imageUrl = launchData.imageUrl || ''
     } catch {
       setError('network error during launch')
       setStep('form')
@@ -76,6 +78,10 @@ export default function LaunchAndDeploy() {
           tokenName: token.symbol,
           tokenCa: mintAddress,
           persona: agent.persona,
+          imageUrl,
+          twitter: token.twitter || null,
+          telegram: token.telegram || null,
+          website: token.website || null,
         }),
       })
       const deployData = await deployRes.json()
