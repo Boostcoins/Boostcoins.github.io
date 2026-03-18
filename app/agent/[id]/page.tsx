@@ -198,6 +198,30 @@ export default function AgentPage() {
           </div>
         </div>
 
+        {/* Agent status banner */}
+        {stats && !stats.last_cycle && (
+          <div className="rounded-xl px-4 py-3 mb-8 flex items-start gap-3" style={{ background: 'var(--blue-light)', border: '1px solid rgba(59,110,245,0.2)' }}>
+            <span className="text-[18px] leading-none mt-0.5">⏳</span>
+            <div>
+              <p className="text-[13px] font-semibold mb-0.5" style={{ color: 'var(--blue)' }}>waiting for first cycle</p>
+              <p className="text-[12px]" style={{ color: 'var(--blue)', opacity: 0.8 }}>
+                the agent runs every 15 min. it needs creator fees to accumulate on pump.fun before it can execute buybacks. this happens automatically as your token gets traded.
+              </p>
+            </div>
+          </div>
+        )}
+        {stats?.last_cycle && stats.last_strategy === 'none' && (
+          <div className="rounded-xl px-4 py-3 mb-8 flex items-start gap-3" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+            <span className="text-[18px] leading-none mt-0.5">⚠️</span>
+            <div>
+              <p className="text-[13px] font-semibold mb-0.5" style={{ color: '#92400e' }}>not enough fees yet</p>
+              <p className="text-[12px]" style={{ color: '#92400e', opacity: 0.8 }}>
+                the agent ran but creator fees haven't reached the minimum threshold. more trading volume on your token will build up fees — the agent will execute automatically once ready.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Stats */}
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
