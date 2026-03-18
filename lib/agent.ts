@@ -16,8 +16,15 @@ interface ThinkResult {
 }
 
 export async function runThinkCycle(agent: AgentConfig): Promise<ThinkResult | null> {
+  const tag = `[THINK:${agent.id}]`
+
   const apiKey = process.env.KIE_API_KEY
-  if (!apiKey) return null
+  if (!apiKey) {
+    console.error(`${tag} KIE_API_KEY not set — skipping think cycle`)
+    return null
+  }
+
+  console.log(`${tag} starting think cycle for "${agent.name}" ($${agent.tokenName})`)
 
   const [inputsRes, memoriesRes, logsRes, statsRes] = await Promise.all([
     supabaseAdmin
@@ -49,6 +56,8 @@ export async function runThinkCycle(agent: AgentConfig): Promise<ThinkResult | n
   const memories = memoriesRes.data?.map((m) => m.content) ?? []
   const recentLogs = logsRes.data ?? []
   const stats = statsRes.data
+
+  console.log(`${tag} context loaded — inputs: ${inputs.length}, memories: ${memories.length}, logs: ${recentLogs.length}`)
 
   const systemPrompt = `you are ${agent.name}. ${agent.persona}
 
@@ -99,33 +108,65 @@ write your next diary entry. respond ONLY with valid JSON:
       }),
     })
 
+    if (!res.ok) {
+      const errText = await res.text()
+      console.error(`${tag} LLM API error ${res.status}: ${errText}`)
+      return null
+    }
+
     const data = await res.json()
     const raw = data.choices?.[0]?.message?.content?.trim()
-    if (!raw) return null
+
+    if (!raw) {
+      console.error(`${tag} LLM returned empty content. Full response: ${JSON.stringify(data)}`)
+      return null
+    }
+
+    console.log(`${tag} LLM responded (${raw.length} chars)`)
 
     const cleaned = raw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
-    const parsed: ThinkResult = JSON.parse(cleaned)
 
-    await supabaseAdmin.from('logs').insert({
+    let parsed: ThinkResult
+    try {
+      parsed = JSON.parse(cleaned)
+    } catch (parseErr) {
+      console.error(`${tag} JSON parse failed: ${parseErr instanceof Error ? parseErr.message : parseErr}`)
+      console.error(`${tag} raw LLM output: ${cleaned.slice(0, 300)}`)
+      return null
+    }
+
+    if (!parsed.title || !parsed.body || !parsed.mood) {
+      console.error(`${tag} LLM JSON missing required fields: ${JSON.stringify(parsed)}`)
+      return null
+    }
+
+    console.log(`${tag} entry: "${parsed.title}" | mood: ${parsed.mood}`)
+
+    const { error: logErr } = await supabaseAdmin.from('logs').insert({
       agent_id: agent.id,
       title: parsed.title,
       body: parsed.body,
       mood: parsed.mood,
     })
+    if (logErr) console.error(`${tag} failed to save log: ${logErr.message}`)
 
     if (parsed.memories?.length) {
-      await supabaseAdmin.from('memories').insert(
+      const { error: memErr } = await supabaseAdmin.from('memories').insert(
         parsed.memories.map((content: string) => ({ agent_id: agent.id, content }))
       )
+      if (memErr) console.error(`${tag} failed to save memories: ${memErr.message}`)
     }
 
-    await supabaseAdmin
+    const { error: agentErr } = await supabaseAdmin
       .from('agents')
       .update({ last_think: new Date().toISOString(), mood: parsed.mood })
       .eq('id', agent.id)
+    if (agentErr) console.error(`${tag} failed to update agent mood: ${agentErr.message}`)
 
+    console.log(`${tag} think cycle complete`)
     return parsed
-  } catch {
+  } catch (err) {
+    console.error(`${tag} unhandled error: ${err instanceof Error ? err.stack ?? err.message : String(err)}`)
     return null
   }
 }

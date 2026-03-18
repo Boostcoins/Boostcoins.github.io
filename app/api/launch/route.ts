@@ -21,9 +21,13 @@ import { keypairFromEncrypted } from '@/lib/wallet'
 const RPC_URL = process.env.RPC_URL || 'https://api.mainnet-beta.solana.com'
 
 export async function POST(req: NextRequest) {
+  const tag = '[LAUNCH]'
   try {
     const session = await getSession()
-    if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    if (!session) {
+      console.log(`${tag} unauthorized request`)
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
 
     const fd = await req.formData()
     const name = fd.get('name') as string
@@ -36,21 +40,28 @@ export async function POST(req: NextRequest) {
     const initialBuyStr = fd.get('initialBuy') as string
 
     if (!name || !symbol || !description || !imageFile) {
-      return NextResponse.json({ error: 'missing fields' }, { status: 400 })
+      return NextResponse.json({ error: 'missing required fields (name, symbol, description, image)' }, { status: 400 })
     }
 
+    console.log(`${tag} user ${session.userId} launching token: ${symbol} (${name})`)
+
     // Get user wallet
-    const { data: walletRow } = await supabaseAdmin
+    const { data: walletRow, error: walletErr } = await supabaseAdmin
       .from('wallets')
       .select('public_key, encrypted_private_key')
       .eq('user_id', session.userId)
       .single()
 
-    if (!walletRow) return NextResponse.json({ error: 'wallet not found' }, { status: 400 })
+    if (walletErr || !walletRow) {
+      console.error(`${tag} wallet not found for user ${session.userId}: ${walletErr?.message}`)
+      return NextResponse.json({ error: 'wallet not found' }, { status: 400 })
+    }
 
     const keypair = keypairFromEncrypted(walletRow.encrypted_private_key)
+    console.log(`${tag} wallet: ${walletRow.public_key}`)
 
     // Step 1: Upload image + metadata to pump.fun IPFS
+    console.log(`${tag} uploading metadata to pump.fun IPFS`)
     const uploadForm = new FormData()
     uploadForm.append('file', imageFile, imageFile.name)
     uploadForm.append('name', name)
@@ -68,16 +79,21 @@ export async function POST(req: NextRequest) {
 
     if (!ipfsRes.ok) {
       const errText = await ipfsRes.text()
+      console.error(`${tag} IPFS upload failed (${ipfsRes.status}): ${errText}`)
       return NextResponse.json({ error: `ipfs upload failed: ${errText}` }, { status: 500 })
     }
 
-    const { metadataUri } = await ipfsRes.json()
+    const ipfsData = await ipfsRes.json()
+    const metadataUri = ipfsData.metadataUri
+    console.log(`${tag} metadata uploaded: ${metadataUri}`)
 
     // Step 2: Create token on pump.fun
     const connection = new Connection(RPC_URL, 'confirmed')
     const sdk = new OnlinePumpSdk(connection)
     const mint = Keypair.generate()
     const initialBuySol = parseFloat(initialBuyStr || '0')
+
+    console.log(`${tag} creating token on pump.fun — mint: ${mint.publicKey.toBase58()} | initial buy: ${initialBuySol} SOL`)
 
     const global = await sdk.fetchGlobal()
     const solAmount = new BN(Math.floor(Math.max(initialBuySol, 0) * 1e9))
@@ -135,14 +151,20 @@ export async function POST(req: NextRequest) {
     tx.recentBlockhash = blockhash
     tx.feePayer = keypair.publicKey
 
-    await sendAndConfirmTransaction(connection, tx, [keypair, mint], {
+    const sig = await sendAndConfirmTransaction(connection, tx, [keypair, mint], {
       skipPreflight: false,
       preflightCommitment: 'processed',
     })
 
-    return NextResponse.json({ mint: mint.publicKey.toBase58() })
+    const mintAddress = mint.publicKey.toBase58()
+    console.log(`${tag} token created! mint: ${mintAddress} | tx: ${sig}`)
+
+    return NextResponse.json({ mint: mintAddress })
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'unknown error'
+    const msg = err instanceof Error ? err.message : String(err)
+    const stack = err instanceof Error ? err.stack : undefined
+    console.error(`${tag} unhandled error: ${msg}`)
+    if (stack) console.error(`${tag} stack: ${stack}`)
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
