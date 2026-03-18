@@ -271,6 +271,8 @@ async function doBuyback(
 
 // ─── Main exported function ───────────────────────────────────────────────────
 
+const MIN_WALLET_SOL_FOR_FEES = 0.005 // wallet needs this much SOL to pay for tx fees
+
 export async function runOnChainCycle(
   agentId: string,
   encryptedPrivateKey: string,
@@ -285,6 +287,19 @@ export async function runOnChainCycle(
   const mint = new PublicKey(mintAddress)
   const sdk = new OnlinePumpSdk(connection)
   const txs: string[] = []
+
+  // Step 0: Check wallet SOL balance for tx fees (separate from vault balance)
+  try {
+    const { LAMPORTS_PER_SOL } = await import('@solana/web3.js')
+    const walletLamports = await connection.getBalance(keypair.publicKey)
+    const walletSol = walletLamports / LAMPORTS_PER_SOL
+    console.log(`${tag} wallet SOL: ${walletSol.toFixed(6)} (min for fees: ${MIN_WALLET_SOL_FOR_FEES})`)
+    if (walletSol < MIN_WALLET_SOL_FOR_FEES) {
+      return { success: false, message: `wallet SOL too low for tx fees: ${walletSol.toFixed(6)} SOL — top up wallet to continue` }
+    }
+  } catch (err) {
+    console.error(`${tag} failed to check wallet SOL balance: ${err instanceof Error ? err.message : err}`)
+  }
 
   // Step 1: Check creator vault balance
   let balanceLamports: BN
@@ -413,7 +428,7 @@ async function saveStats(
       .from('agent_stats')
       .update({
         total_claimed:  (existing.total_claimed  || 0) + claimed,
-        total_burned:   (BigInt(existing.total_burned || '0') + BigInt(burned)).toString(),
+        total_burned:   (BigInt(String(existing.total_burned ?? '0')) + BigInt(burned)).toString(),
         total_lp:       (existing.total_lp       || 0) + lpSol,
         last_cycle:     new Date().toISOString(),
         last_strategy:  strategy,

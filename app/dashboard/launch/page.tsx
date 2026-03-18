@@ -233,7 +233,7 @@ export default function LaunchAndDeploy() {
           <div className="rounded-xl p-4" style={{ background: 'var(--blue-light)', border: '1px solid rgba(59,110,245,0.15)' }}>
             {[
               'token created on pump.fun bonding curve (~0.025 SOL fee)',
-              'min ~0.055 SOL in wallet before launch (fee + agent minimum)',
+              'min 0.1 SOL in wallet before starting (fee + initial buy + agent reserve)',
               'agent starts running every 15 min immediately',
               'max 3 active agents per account',
             ].map((note) => (

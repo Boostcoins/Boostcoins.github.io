@@ -21,8 +21,8 @@ const RPC_URL = process.env.RPC_URL || 'https://api.mainnet-beta.solana.com'
 
 // SOL costs for the full launch+deploy flow
 const LAUNCH_FEE_SOL  = 0.025  // pump.fun token creation + tx fees
-const DEPLOY_MIN_SOL  = 0.03   // minimum needed in wallet after launch to keep agent running
-const TOTAL_MIN_SOL   = LAUNCH_FEE_SOL + DEPLOY_MIN_SOL // 0.055 SOL baseline (+ initial buy on top)
+const DEPLOY_MIN_SOL  = 0.075  // minimum left in wallet after launch (covers agent cycles + tx fees)
+const TOTAL_MIN_SOL   = LAUNCH_FEE_SOL + DEPLOY_MIN_SOL // ~0.1 SOL baseline (+ initial buy on top)
 
 export async function POST(req: NextRequest) {
   const tag = '[LAUNCH]'
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
       const needed = requiredSol - balance
       return NextResponse.json(
         {
-          error: `insufficient balance. wallet has ${balance.toFixed(4)} SOL but needs ${requiredSol.toFixed(4)} SOL (launch ~0.025 + initial buy ${initialBuySol} + agent minimum 0.03). add ${needed.toFixed(4)} more SOL.`,
+          error: `insufficient balance. wallet has ${balance.toFixed(4)} SOL but needs at least ${requiredSol.toFixed(4)} SOL (~0.025 for launch fee + ${initialBuySol} initial buy + 0.075 to keep agent running). top up ${needed.toFixed(4)} more SOL and try again.`,
         },
         { status: 402 }
       )

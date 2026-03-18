@@ -3,7 +3,7 @@ import { getSession } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getWalletBalance } from '@/lib/wallet'
 
-const MIN_SOL_TO_DEPLOY = 0.03
+const MIN_SOL_TO_DEPLOY = 0.075
 
 export async function POST(req: NextRequest) {
   const tag = '[DEPLOY]'
