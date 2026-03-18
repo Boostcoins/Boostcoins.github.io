@@ -8,7 +8,7 @@ import Image from 'next/image'
 export default function LaunchToken() {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [form, setForm] = useState({ name: '', symbol: '', description: '' })
+  const [form, setForm] = useState({ name: '', symbol: '', description: '', twitter: '', telegram: '', website: '' })
   const [image, setImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [initialBuy, setInitialBuy] = useState('0.1')
@@ -36,6 +36,9 @@ export default function LaunchToken() {
       fd.append('name', form.name)
       fd.append('symbol', form.symbol)
       fd.append('description', form.description)
+      fd.append('twitter', form.twitter)
+      fd.append('telegram', form.telegram)
+      fd.append('website', form.website)
       fd.append('image', image)
       fd.append('initialBuy', initialBuy)
 
@@ -193,6 +196,28 @@ export default function LaunchToken() {
               style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--dark)', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
             />
             <p className="text-[11px] mt-1" style={{ color: 'var(--muted)' }}>{form.description.length} / 200</p>
+          </div>
+
+          {/* Social links */}
+          <div>
+            <label className="block text-[11px] font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>links <span style={{ opacity: 0.5 }}>(optional)</span></label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {[
+                { key: 'twitter', placeholder: 'https://x.com/yourtoken' },
+                { key: 'telegram', placeholder: 'https://t.me/yourtoken' },
+                { key: 'website', placeholder: 'https://yourtoken.xyz' },
+              ].map(({ key, placeholder }) => (
+                <input
+                  key={key}
+                  type="text"
+                  value={form[key as keyof typeof form]}
+                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                  placeholder={placeholder}
+                  className="w-full rounded-lg px-4 py-3 text-[14px] outline-none"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--dark)', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
+                />
+              ))}
+            </div>
           </div>
 
           {/* Initial buy */}

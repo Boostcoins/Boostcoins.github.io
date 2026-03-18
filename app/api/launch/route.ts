@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
     const name = fd.get('name') as string
     const symbol = fd.get('symbol') as string
     const description = fd.get('description') as string
+    const twitter = (fd.get('twitter') as string) || ''
+    const telegram = (fd.get('telegram') as string) || ''
+    const website = (fd.get('website') as string) || ''
     const imageFile = fd.get('image') as File
     const initialBuyStr = fd.get('initialBuy') as string
 
@@ -53,9 +56,9 @@ export async function POST(req: NextRequest) {
     uploadForm.append('name', name)
     uploadForm.append('symbol', symbol)
     uploadForm.append('description', description)
-    uploadForm.append('twitter', '')
-    uploadForm.append('telegram', '')
-    uploadForm.append('website', '')
+    uploadForm.append('twitter', twitter)
+    uploadForm.append('telegram', telegram)
+    uploadForm.append('website', website)
     uploadForm.append('showName', 'true')
 
     const ipfsRes = await fetch('https://pump.fun/api/ipfs', {
