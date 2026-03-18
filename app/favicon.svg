@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Light blue background square with rounded corners -->
+  <rect width="32" height="32" rx="7" fill="#e8eeff"/>
+  <!-- White cloud -->
+  <path d="M22 19.5H11.5C9.57 19.5 8 17.93 8 16c0-1.74 1.26-3.18 2.93-3.45A5 5 0 0 1 16 9a5 5 0 0 1 4.9 4h.1a3 3 0 0 1 3 3 3 3 0 0 1-2 2.83V19.5z" fill="white"/>
+  <ellipse cx="11.5" cy="19.5" rx="3.5" ry="3.5" fill="white"/>
+  <ellipse cx="22" cy="19.5" rx="3" ry="3" fill="white"/>
+  <rect x="8" y="19.5" width="17" height="3.5" fill="white"/>
+</svg>
