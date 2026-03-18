@@ -10,7 +10,6 @@ import {
   OnlinePumpSdk,
   PUMP_SDK,
   PUMP_PROGRAM_ID,
-  getBuyTokenAmountFromSolAmount,
   bondingCurveV2Pda,
 } from '@pump-fun/pump-sdk'
 import BN from 'bn.js'
@@ -101,14 +100,15 @@ export async function POST(req: NextRequest) {
     let ixArray: import('@solana/web3.js').TransactionInstruction[]
 
     if (initialBuySol > 0) {
-      const buyState = await sdk.fetchBuyState(mint.publicKey, keypair.publicKey)
-      const tokenAmount = getBuyTokenAmountFromSolAmount({
-        global,
-        feeConfig: null,
-        mintSupply: buyState.bondingCurve?.tokenTotalSupply ?? new BN(0),
-        bondingCurve: buyState.bondingCurve,
-        amount: solAmount,
-      })
+      // For a brand-new token the bonding curve doesn't exist on-chain yet,
+      // so we can't call fetchBuyState. Instead we calculate using pump.fun's
+      // known initial virtual reserves (these are constant for every new token).
+      const INIT_VIRTUAL_TOKENS = new BN('1073000191000000') // 1,073,000,191 tokens
+      const INIT_VIRTUAL_SOL   = new BN('30000000000')       // 30 SOL in lamports
+      const tokenAmount = INIT_VIRTUAL_TOKENS.mul(solAmount).div(INIT_VIRTUAL_SOL.add(solAmount))
+
+      console.log(`${tag} initial buy token estimate: ${tokenAmount.toString()} (for ${initialBuySol} SOL)`)
+
       const result = await PUMP_SDK.createAndBuyInstructions({
         global,
         mint: mint.publicKey,
