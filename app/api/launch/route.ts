@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Connection, Keypair, Transaction, sendAndConfirmTransaction } from '@solana/web3.js'
-import { PumpSdk } from '@pump-fun/pump-sdk'
+import {
+  Connection,
+  Keypair,
+  Transaction,
+  ComputeBudgetProgram,
+  sendAndConfirmTransaction,
+} from '@solana/web3.js'
+import {
+  OnlinePumpSdk,
+  PUMP_SDK,
+  PUMP_PROGRAM_ID,
+  getBuyTokenAmountFromSolAmount,
+  bondingCurveV2Pda,
+} from '@pump-fun/pump-sdk'
 import BN from 'bn.js'
 import { getSession } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
@@ -60,20 +72,25 @@ export async function POST(req: NextRequest) {
 
     // Step 2: Create token on pump.fun
     const connection = new Connection(RPC_URL, 'confirmed')
-    const sdk = new PumpSdk(connection)
-
+    const sdk = new OnlinePumpSdk(connection)
     const mint = Keypair.generate()
     const initialBuySol = parseFloat(initialBuyStr || '0')
 
-    let instructions: { instructions: import('@solana/web3.js').TransactionInstruction[] }
+    const global = await sdk.fetchGlobal()
+    const solAmount = new BN(Math.floor(Math.max(initialBuySol, 0) * 1e9))
+
+    let ixArray: import('@solana/web3.js').TransactionInstruction[]
 
     if (initialBuySol > 0) {
-      const global = await sdk.fetchGlobal()
-      const solAmount = new BN(Math.floor(initialBuySol * 1e9))
-      const { getBuyTokenAmountFromSolAmount } = await import('@pump-fun/pump-sdk')
-      const tokenAmount = getBuyTokenAmountFromSolAmount(global, null, solAmount)
-
-      instructions = await sdk.createAndBuyInstructions({
+      const buyState = await sdk.fetchBuyState(mint.publicKey, keypair.publicKey)
+      const tokenAmount = getBuyTokenAmountFromSolAmount({
+        global,
+        feeConfig: null,
+        mintSupply: buyState.bondingCurve?.tokenTotalSupply ?? new BN(0),
+        bondingCurve: buyState.bondingCurve,
+        amount: solAmount,
+      })
+      const result = await PUMP_SDK.createAndBuyInstructions({
         global,
         mint: mint.publicKey,
         name,
@@ -84,8 +101,9 @@ export async function POST(req: NextRequest) {
         solAmount,
         amount: tokenAmount,
       })
+      ixArray = result as unknown as import('@solana/web3.js').TransactionInstruction[]
     } else {
-      instructions = await sdk.createInstruction({
+      const result = await PUMP_SDK.createInstruction({
         mint: mint.publicKey,
         name,
         symbol,
@@ -93,18 +111,31 @@ export async function POST(req: NextRequest) {
         creator: keypair.publicKey,
         user: keypair.publicKey,
       })
+      ixArray = result as unknown as import('@solana/web3.js').TransactionInstruction[]
+    }
+
+    // Append V2 PDA (required after program upgrade)
+    for (const ix of ixArray as unknown as { programId: import('@solana/web3.js').PublicKey; keys: { pubkey: import('@solana/web3.js').PublicKey; isSigner: boolean; isWritable: boolean }[] }[]) {
+      if (ix.programId.equals(PUMP_PROGRAM_ID)) {
+        ix.keys.push({ pubkey: bondingCurveV2Pda(mint.publicKey), isSigner: false, isWritable: false })
+      }
     }
 
     const tx = new Transaction()
-    const ixArray = Array.isArray(instructions) ? instructions : instructions.instructions
-    tx.add(...ixArray)
+    tx.instructions.push(
+      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 }),
+      ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 }),
+      ...ixArray
+    )
 
     const { blockhash } = await connection.getLatestBlockhash()
     tx.recentBlockhash = blockhash
     tx.feePayer = keypair.publicKey
 
-    const signers = [keypair, mint]
-    await sendAndConfirmTransaction(connection, tx, signers, { commitment: 'confirmed' })
+    await sendAndConfirmTransaction(connection, tx, [keypair, mint], {
+      skipPreflight: false,
+      preflightCommitment: 'processed',
+    })
 
     return NextResponse.json({ mint: mint.publicKey.toBase58() })
   } catch (err: unknown) {

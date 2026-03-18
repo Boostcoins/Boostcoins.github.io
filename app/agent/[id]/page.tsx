@@ -49,7 +49,8 @@ export default function AgentPage() {
         body: JSON.stringify({ content: message }),
       })
       if (res.ok) {
-        setInputs((p) => [await res.json(), ...p])
+        const newInput = await res.json()
+        setInputs((p) => [newInput, ...p])
         setMessage(''); setSendStatus('sent')
         setTimeout(() => setSendStatus('idle'), 3000)
       } else {

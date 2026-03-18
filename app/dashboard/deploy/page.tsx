@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function Deploy() {
+function DeployInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [form, setForm] = useState({ name: '', tokenName: '', tokenCa: '', persona: '' })
@@ -144,5 +144,13 @@ export default function Deploy() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function Deploy() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" style={{ background: 'var(--bg)' }} />}>
+      <DeployInner />
+    </Suspense>
   )
 }
