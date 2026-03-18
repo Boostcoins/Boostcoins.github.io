@@ -42,17 +42,10 @@ export default async function Dashboard() {
           <div className="flex items-center gap-3">
             <Link
               href="/dashboard/launch"
-              className="px-5 py-2.5 rounded text-[14px] font-medium"
-              style={{ background: 'var(--surface)', color: 'var(--dark)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
-            >
-              launch token
-            </Link>
-            <Link
-              href="/dashboard/deploy"
               className="font-semibold px-5 py-2.5 rounded text-[14px]"
               style={{ background: 'var(--blue)', color: '#fff', boxShadow: '0 2px 12px rgba(59,110,245,0.25)' }}
             >
-              + deploy agent
+              + new agent
             </Link>
           </div>
         </div>
@@ -85,7 +78,7 @@ export default async function Dashboard() {
             your agents ({agents.length} / 3)
           </p>
           {agents.length > 0 && (
-            <Link href="/dashboard/deploy" className="text-[13px]" style={{ color: 'var(--blue)' }}>
+            <Link href="/dashboard/launch" className="text-[13px]" style={{ color: 'var(--blue)' }}>
               + new agent
             </Link>
           )}
@@ -97,8 +90,8 @@ export default async function Dashboard() {
             style={{ border: '2px dashed var(--border)', background: 'var(--surface)' }}
           >
             <p className="text-[14px] mb-3" style={{ color: 'var(--muted)' }}>no agents deployed yet</p>
-            <Link href="/dashboard/deploy" className="text-[14px] font-semibold" style={{ color: 'var(--blue)' }}>
-              deploy your first agent →
+            <Link href="/dashboard/launch" className="text-[14px] font-semibold" style={{ color: 'var(--blue)' }}>
+              launch your first agent →
             </Link>
           </div>
         ) : (
