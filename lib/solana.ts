@@ -1,0 +1,363 @@
+import {
+  Connection,
+  Keypair,
+  Transaction,
+  PublicKey,
+  ComputeBudgetProgram,
+  sendAndConfirmTransaction,
+} from '@solana/web3.js'
+import {
+  getAssociatedTokenAddressSync,
+  createBurnInstruction,
+  TOKEN_2022_PROGRAM_ID,
+} from '@solana/spl-token'
+import {
+  OnlinePumpSdk,
+  PUMP_SDK,
+  PUMP_PROGRAM_ID,
+  getBuyTokenAmountFromSolAmount,
+  bondingCurveV2Pda,
+} from '@pump-fun/pump-sdk'
+import {
+  OnlinePumpAmmSdk,
+  PumpAmmSdk,
+  PUMP_AMM_SDK,
+  PUMP_AMM_PROGRAM_ID,
+  poolV2Pda,
+  canonicalPumpPoolPda,
+} from '@pump-fun/pump-swap-sdk'
+import BN from 'bn.js'
+import { keypairFromEncrypted } from './wallet'
+import { supabaseAdmin } from './supabase'
+
+const RPC_URL = process.env.RPC_URL || 'https://api.mainnet-beta.solana.com'
+const MIN_CLAIM_SOL = parseFloat(process.env.MIN_CLAIM_SOL || '0.01')
+
+// ─── Mood-aware strategy picker (mirrors NEUROCLAW) ───────────────────────────
+
+const STRATEGIES = [
+  { name: 'burn-heavy', buybackFraction: 0.85, lpFraction: 0.15, weight: 30 },
+  { name: 'balanced',   buybackFraction: 0.50, lpFraction: 0.50, weight: 25 },
+  { name: 'lp-focus',  buybackFraction: 0.15, lpFraction: 0.85, weight: 20 },
+  { name: 'full-burn', buybackFraction: 1.00, lpFraction: 0.00, weight: 15 },
+  { name: 'full-lp',   buybackFraction: 0.00, lpFraction: 1.00, weight: 10 },
+]
+
+const MOOD_BURN = new Set(['aggressive', 'defiant', 'wired', 'electric', 'raw', 'hungry', 'sharp', 'restless', 'intense', 'dark'])
+const MOOD_LP   = new Set(['calm', 'soft', 'tender', 'lucid', 'warm', 'foggy', 'hollow', 'numb', 'still', 'quiet', 'gentle'])
+
+function pickStrategy(mood?: string) {
+  const strategies = STRATEGIES.map((s) => ({ ...s }))
+  if (mood) {
+    const m = mood.toLowerCase()
+    if (MOOD_BURN.has(m)) {
+      strategies.find((s) => s.name === 'burn-heavy')!.weight *= 2.5
+      strategies.find((s) => s.name === 'full-burn')!.weight  *= 2.5
+    } else if (MOOD_LP.has(m)) {
+      strategies.find((s) => s.name === 'lp-focus')!.weight *= 2.5
+      strategies.find((s) => s.name === 'full-lp')!.weight  *= 2.5
+    }
+  }
+  const total = strategies.reduce((s, x) => s + x.weight, 0)
+  let r = Math.random() * total
+  for (const s of strategies) {
+    r -= s.weight
+    if (r <= 0) return s
+  }
+  return strategies[0]
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+type Ix = { programId: PublicKey; keys: { pubkey: PublicKey; isSigner: boolean; isWritable: boolean }[] }
+
+function appendV2Account(instructions: Ix[], programId: PublicKey, v2Pda: PublicKey) {
+  for (const ix of instructions) {
+    if (ix.programId.equals(programId)) {
+      ix.keys.push({ pubkey: v2Pda, isSigner: false, isWritable: false })
+    }
+  }
+}
+
+async function sendTx(connection: Connection, tx: Transaction, signer: Keypair): Promise<string> {
+  tx.instructions.unshift(
+    ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 }),
+    ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 })
+  )
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await sendAndConfirmTransaction(connection, tx, [signer], {
+        skipPreflight: false,
+        preflightCommitment: 'processed',
+        maxRetries: 5,
+      })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('blockhash') && attempt < 2) {
+        tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash
+        continue
+      }
+      throw err
+    }
+  }
+  throw new Error('tx failed after 3 attempts')
+}
+
+async function checkMigration(connection: Connection, mint: PublicKey): Promise<boolean> {
+  try {
+    const poolPda = canonicalPumpPoolPda(mint)
+    const info = await connection.getAccountInfo(poolPda)
+    return info !== null
+  } catch {
+    return false
+  }
+}
+
+// ─── LP Add (post-migration only) ─────────────────────────────────────────────
+
+async function addLiquidity(
+  connection: Connection,
+  keypair: Keypair,
+  mint: PublicKey,
+  lpLamports: number,
+  txs: string[]
+): Promise<{ sol: number; error?: string }> {
+  try {
+    const onlineAmm = new OnlinePumpAmmSdk(connection)
+    const pumpAmmSdk = new PumpAmmSdk()
+    const poolPda = canonicalPumpPoolPda(mint)
+    const ata = getAssociatedTokenAddressSync(mint, keypair.publicKey, true, TOKEN_2022_PROGRAM_ID)
+
+    const depositSolBN = new BN(Math.floor(lpLamports * 0.5))
+
+    const liquidityState = await onlineAmm.liquiditySolanaState(poolPda, keypair.publicKey, ata)
+    const { base: tokensNeeded, lpToken } = pumpAmmSdk.depositAutocompleteBaseAndLpTokenFromQuote(
+      liquidityState,
+      depositSolBN,
+      5
+    )
+
+    if (tokensNeeded.isZero() || lpToken.isZero()) return { sol: 0 }
+
+    // Buy exact tokens needed for LP deposit
+    const swapState = await onlineAmm.swapSolanaState(poolPda, keypair.publicKey, ata)
+    const buyIx = await PUMP_AMM_SDK.buyBaseInput(swapState, tokensNeeded, 5)
+    appendV2Account(buyIx as unknown as Ix[], PUMP_AMM_PROGRAM_ID, poolV2Pda(mint))
+    txs.push(await sendTx(connection, new Transaction().add(...(buyIx as unknown as import('@solana/web3.js').TransactionInstruction[])), keypair))
+
+    await new Promise((r) => setTimeout(r, 3000))
+
+    // Re-read actual token balance
+    const tokenInfo = await connection.getTokenAccountBalance(ata)
+    const actualTokens = new BN(tokenInfo.value.amount)
+    if (actualTokens.isZero()) return { sol: 0 }
+
+    const freshLiquidityState = await onlineAmm.liquiditySolanaState(poolPda, keypair.publicKey, ata)
+    const { lpToken: freshLpToken } = pumpAmmSdk.depositAutocompleteQuoteAndLpTokenFromBase(
+      freshLiquidityState,
+      actualTokens,
+      5
+    )
+    if (freshLpToken.isZero()) return { sol: 0 }
+
+    const depositIx = await pumpAmmSdk.depositInstructions(freshLiquidityState, freshLpToken, 5)
+    appendV2Account(depositIx as unknown as Ix[], PUMP_AMM_PROGRAM_ID, poolV2Pda(mint))
+    txs.push(await sendTx(connection, new Transaction().add(...(depositIx as unknown as import('@solana/web3.js').TransactionInstruction[])), keypair))
+
+    return { sol: lpLamports / 1e9 }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { sol: -1, error: msg }
+  }
+}
+
+// ─── Buyback + Burn ───────────────────────────────────────────────────────────
+
+async function doBuyback(
+  connection: Connection,
+  keypair: Keypair,
+  mint: PublicKey,
+  sdk: OnlinePumpSdk,
+  isMigrated: boolean,
+  buyLamports: number,
+  txs: string[]
+): Promise<{ buySol: number; burnedAmount: string }> {
+  const buySolBn = new BN(Math.floor(buyLamports))
+  const buySol = buyLamports / 1e9
+  const ata = getAssociatedTokenAddressSync(mint, keypair.publicKey, true, TOKEN_2022_PROGRAM_ID)
+
+  if (isMigrated) {
+    const onlineAmm = new OnlinePumpAmmSdk(connection)
+    const poolPda = canonicalPumpPoolPda(mint)
+    const swapState = await onlineAmm.swapSolanaState(poolPda, keypair.publicKey, ata)
+    const buyIx = await PUMP_AMM_SDK.buyQuoteInput(swapState, buySolBn, 5)
+    appendV2Account(buyIx as unknown as Ix[], PUMP_AMM_PROGRAM_ID, poolV2Pda(mint))
+    txs.push(await sendTx(connection, new Transaction().add(...(buyIx as unknown as import('@solana/web3.js').TransactionInstruction[])), keypair))
+  } else {
+    const global = await sdk.fetchGlobal()
+    const buyState = await sdk.fetchBuyState(mint, keypair.publicKey, TOKEN_2022_PROGRAM_ID)
+    const amount = getBuyTokenAmountFromSolAmount({
+      global,
+      feeConfig: null,
+      mintSupply: buyState.bondingCurve.tokenTotalSupply,
+      bondingCurve: buyState.bondingCurve,
+      amount: buySolBn,
+    })
+    const buyIx = await PUMP_SDK.buyInstructions({
+      global,
+      bondingCurveAccountInfo: buyState.bondingCurveAccountInfo,
+      bondingCurve: buyState.bondingCurve,
+      associatedUserAccountInfo: buyState.associatedUserAccountInfo,
+      mint,
+      user: keypair.publicKey,
+      amount,
+      solAmount: buySolBn,
+      slippage: 2,
+      tokenProgram: TOKEN_2022_PROGRAM_ID,
+    })
+    appendV2Account(buyIx as unknown as Ix[], PUMP_PROGRAM_ID, bondingCurveV2Pda(mint))
+    txs.push(await sendTx(connection, new Transaction().add(...(buyIx as unknown as import('@solana/web3.js').TransactionInstruction[])), keypair))
+  }
+
+  await new Promise((r) => setTimeout(r, 3000))
+
+  let tokenBalance = BigInt(0)
+  try {
+    const tokenInfo = await connection.getTokenAccountBalance(ata)
+    tokenBalance = BigInt(tokenInfo.value.amount)
+  } catch {}
+
+  let burnedAmount = '0'
+  if (tokenBalance > BigInt(0)) {
+    const burnIx = createBurnInstruction(ata, mint, keypair.publicKey, tokenBalance, [], TOKEN_2022_PROGRAM_ID)
+    txs.push(await sendTx(connection, new Transaction().add(burnIx), keypair))
+    burnedAmount = tokenBalance.toString()
+  }
+
+  return { buySol, burnedAmount }
+}
+
+// ─── Main exported function ───────────────────────────────────────────────────
+
+export async function runOnChainCycle(
+  agentId: string,
+  encryptedPrivateKey: string,
+  mintAddress: string,
+  mood?: string
+): Promise<{ success: boolean; message: string; strategy?: string; burned?: string; lpSol?: number }> {
+  const connection = new Connection(RPC_URL, 'confirmed')
+  const keypair = keypairFromEncrypted(encryptedPrivateKey)
+  const mint = new PublicKey(mintAddress)
+  const sdk = new OnlinePumpSdk(connection)
+  const txs: string[] = []
+
+  // Step 1: Check creator vault balance
+  const balanceLamports = await sdk.getCreatorVaultBalanceBothPrograms(keypair.publicKey)
+  const balanceSol = balanceLamports.toNumber() / 1e9
+
+  if (balanceSol < MIN_CLAIM_SOL) {
+    return { success: false, message: `vault balance too low: ${balanceSol.toFixed(6)} SOL` }
+  }
+
+  // Step 2: Claim accumulated creator fees (bonding curve + AMM)
+  const claimIx = await sdk.collectCoinCreatorFeeInstructions(keypair.publicKey, keypair.publicKey)
+  appendV2Account(claimIx as unknown as Ix[], PUMP_PROGRAM_ID, bondingCurveV2Pda(mint))
+  appendV2Account(claimIx as unknown as Ix[], PUMP_AMM_PROGRAM_ID, poolV2Pda(mint))
+  txs.push(await sendTx(connection, new Transaction().add(...(claimIx as unknown as import('@solana/web3.js').TransactionInstruction[])), keypair))
+
+  await new Promise((r) => setTimeout(r, 2000))
+
+  const txFeeSol = 0.002
+  const availableLamports = Math.max(0, Math.floor(balanceSol * 1e9) - txFeeSol * 1e9)
+
+  if (availableLamports <= 0) {
+    await saveStats(agentId, balanceSol, 0, '0', 0, 'none')
+    return { success: true, message: 'claimed fees, nothing left after gas', strategy: 'none' }
+  }
+
+  // Step 3: Check migration status (determines if LP is possible)
+  const isMigrated = await checkMigration(connection, mint)
+
+  // Step 4: Pick strategy — pre-migration always full-burn, post-migration mood-aware
+  const strategy = isMigrated
+    ? pickStrategy(mood)
+    : { name: 'full-burn', buybackFraction: 1.0, lpFraction: 0.0 }
+
+  let lpSol = 0
+  let lpError: string | undefined
+  let buyLamports = availableLamports
+
+  // Step 5: Add liquidity (only post-migration)
+  if (isMigrated && strategy.lpFraction > 0) {
+    const lpLamports = Math.floor(availableLamports * strategy.lpFraction)
+    buyLamports = availableLamports - lpLamports
+
+    const lpResult = await addLiquidity(connection, keypair, mint, lpLamports, txs)
+    if (lpResult.sol === -1) {
+      lpError = lpResult.error
+      buyLamports = availableLamports // LP failed, put it all into buyback
+    } else {
+      lpSol = lpResult.sol
+    }
+  }
+
+  // Step 6: Buyback + burn
+  let buySol = 0
+  let burnedAmount = '0'
+
+  if (buyLamports > 0 && strategy.buybackFraction > 0) {
+    const result = await doBuyback(connection, keypair, mint, sdk, isMigrated, buyLamports, txs)
+    buySol = result.buySol
+    burnedAmount = result.burnedAmount
+  }
+
+  // Step 7: Save stats
+  await saveStats(agentId, balanceSol, buySol, burnedAmount, lpSol, strategy.name)
+
+  return {
+    success: true,
+    message: `cycle complete — ${strategy.name}${isMigrated ? ' (AMM)' : ' (bonding curve)'}${lpError ? ` [LP failed: ${lpError}]` : ''}`,
+    strategy: strategy.name,
+    burned: burnedAmount,
+    lpSol,
+  }
+}
+
+// ─── Save stats to Supabase ───────────────────────────────────────────────────
+
+async function saveStats(
+  agentId: string,
+  claimed: number,
+  boughtBack: number,
+  burned: string,
+  lpSol: number,
+  strategy: string
+) {
+  const { data: existing } = await supabaseAdmin
+    .from('agent_stats')
+    .select('*')
+    .eq('agent_id', agentId)
+    .single()
+
+  if (existing) {
+    await supabaseAdmin
+      .from('agent_stats')
+      .update({
+        total_claimed:  (existing.total_claimed  || 0) + claimed,
+        total_burned:   (BigInt(existing.total_burned || '0') + BigInt(burned)).toString(),
+        total_lp:       (existing.total_lp       || 0) + lpSol,
+        last_cycle:     new Date().toISOString(),
+        last_strategy:  strategy,
+      })
+      .eq('agent_id', agentId)
+  } else {
+    await supabaseAdmin.from('agent_stats').insert({
+      agent_id:      agentId,
+      total_claimed: claimed,
+      total_burned:  burned,
+      total_lp:      lpSol,
+      last_cycle:    new Date().toISOString(),
+      last_strategy: strategy,
+    })
+  }
+}
