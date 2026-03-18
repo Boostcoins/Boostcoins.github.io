@@ -113,8 +113,22 @@ export async function POST(req: NextRequest) {
 
     const ipfsData = await ipfsRes.json()
     const metadataUri = ipfsData.metadataUri
-    // pump.fun IPFS response may include imageUri directly, otherwise derive from metadata
-    const imageUrl: string = ipfsData.imageUri || ipfsData.image || ''
+    console.log(`${tag} IPFS response: ${JSON.stringify(ipfsData)}`)
+
+    // Try to get image URL — pump.fun embeds it inside the metadata JSON
+    let imageUrl: string = ipfsData.imageUri || ipfsData.image || ''
+    if (!imageUrl && metadataUri) {
+      try {
+        const metaRes = await fetch(metadataUri)
+        if (metaRes.ok) {
+          const meta = await metaRes.json()
+          imageUrl = meta.image || ''
+          console.log(`${tag} image from metadata: ${imageUrl}`)
+        }
+      } catch (e) {
+        console.error(`${tag} failed to fetch metadata for image URL: ${e}`)
+      }
+    }
     console.log(`${tag} metadata uploaded: ${metadataUri} | image: ${imageUrl || '(none)'}`)
 
     // Step 2: Create token on pump.fun
