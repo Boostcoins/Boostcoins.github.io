@@ -8,7 +8,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Pilot — give your coin a pilot',
+  title: 'give your coin a pilot',
   description: 'Launch an autonomous AI agent for your Solana token. Buybacks, burns, and on-chain activity — running 24/7.',
   icons: {
     icon: '/favicon.svg',
