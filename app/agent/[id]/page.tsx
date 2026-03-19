@@ -30,6 +30,29 @@ function timeAgo(date: string) {
   return `${Math.floor(h / 24)}d ago`
 }
 
+function nextCycleIn(lastCycle: string | null) {
+  if (!lastCycle) return null
+  const last = new Date(lastCycle).getTime()
+  const next = last + 15 * 60 * 1000
+  const diff = next - Date.now()
+  if (diff <= 0) return 'any moment'
+  const mins = Math.floor(diff / 60000)
+  const secs = Math.floor((diff % 60000) / 1000)
+  if (mins > 0) return `~${mins}m ${secs}s`
+  return `~${secs}s`
+}
+
+function CycleCountdown({ lastCycle }: { lastCycle: string | null }) {
+  const [text, setText] = useState(nextCycleIn(lastCycle))
+  useEffect(() => {
+    if (!lastCycle) return
+    const iv = setInterval(() => setText(nextCycleIn(lastCycle)), 1000)
+    return () => clearInterval(iv)
+  }, [lastCycle])
+  if (!text) return <span>pending</span>
+  return <span>{text}</span>
+}
+
 export default function AgentPage() {
   const { id } = useParams<{ id: string }>()
   const [agent, setAgent] = useState<Agent | null>(null)
@@ -95,6 +118,8 @@ export default function AgentPage() {
   )
 
   const daysAlive = Math.floor((Date.now() - new Date(agent.created_at).getTime()) / (1000 * 60 * 60 * 24))
+
+  const lastCycleTime = stats?.last_cycle ?? agent.last_think ?? null
 
   const statItems = [
     { label: 'sol claimed', value: stats?.total_claimed?.toFixed(4) ?? '0' },
@@ -194,6 +219,23 @@ export default function AgentPage() {
             <p className="text-[11px] font-mono" style={{ color: '#92400e', opacity: 0.7 }}>
               the agent ran but creator fees haven&apos;t reached the minimum threshold. more trading volume will build up fees.
             </p>
+          </div>
+        )}
+
+        {/* cycle status */}
+        {agent.status === 'active' && (
+          <div className="rounded-xl px-4 py-3 mb-8 flex items-center justify-between" style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(20px)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-3">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--blue)', animation: 'blink 2s steps(1) infinite' }} />
+              <p className="text-[11px] font-mono" style={{ color: 'var(--muted)' }}>
+                next cycle in <span style={{ color: 'var(--dark)', fontWeight: 600 }}><CycleCountdown lastCycle={lastCycleTime} /></span>
+              </p>
+            </div>
+            {lastCycleTime && (
+              <p className="text-[10px] font-mono" style={{ color: 'var(--muted)', opacity: 0.5 }}>
+                last: {timeAgo(lastCycleTime)}
+              </p>
+            )}
           </div>
         )}
 
