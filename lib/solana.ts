@@ -10,6 +10,7 @@ import {
   getAssociatedTokenAddressSync,
   createBurnInstruction,
   TOKEN_2022_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
 } from '@solana/spl-token'
 import {
   OnlinePumpSdk,
@@ -71,6 +72,12 @@ function pickStrategy(mood?: string) {
 
 type Ix = { programId: PublicKey; keys: { pubkey: PublicKey; isSigner: boolean; isWritable: boolean }[] }
 
+async function getTokenProgramForMint(connection: Connection, mint: PublicKey): Promise<PublicKey> {
+  const info = await connection.getAccountInfo(mint)
+  if (info && info.owner.equals(TOKEN_2022_PROGRAM_ID)) return TOKEN_2022_PROGRAM_ID
+  return TOKEN_PROGRAM_ID
+}
+
 function appendV2Account(instructions: Ix[], programId: PublicKey, v2Pda: PublicKey) {
   for (const ix of instructions) {
     if (ix.programId.equals(programId)) {
@@ -122,14 +129,15 @@ async function addLiquidity(
   mint: PublicKey,
   lpLamports: number,
   txs: string[],
-  tag: string
+  tag: string,
+  tokenProgram: PublicKey
 ): Promise<{ sol: number; error?: string }> {
   try {
     console.log(`${tag} [LP] starting liquidity add — ${(lpLamports / 1e9).toFixed(6)} SOL`)
     const onlineAmm = new OnlinePumpAmmSdk(connection)
     const pumpAmmSdk = new PumpAmmSdk()
     const poolPda = canonicalPumpPoolPda(mint)
-    const ata = getAssociatedTokenAddressSync(mint, keypair.publicKey, true, TOKEN_2022_PROGRAM_ID)
+    const ata = getAssociatedTokenAddressSync(mint, keypair.publicKey, true, tokenProgram)
 
     const depositSolBN = new BN(Math.floor(lpLamports * 0.5))
 
@@ -199,11 +207,12 @@ async function doBuyback(
   isMigrated: boolean,
   buyLamports: number,
   txs: string[],
-  tag: string
+  tag: string,
+  tokenProgram: PublicKey
 ): Promise<{ buySol: number; burnedAmount: string }> {
   const buySolBn = new BN(Math.floor(buyLamports))
   const buySol = buyLamports / 1e9
-  const ata = getAssociatedTokenAddressSync(mint, keypair.publicKey, true, TOKEN_2022_PROGRAM_ID)
+  const ata = getAssociatedTokenAddressSync(mint, keypair.publicKey, true, tokenProgram)
 
   console.log(`${tag} [BUY] buying ${buySol.toFixed(6)} SOL worth via ${isMigrated ? 'AMM' : 'bonding curve'}`)
 
@@ -218,7 +227,7 @@ async function doBuyback(
     txs.push(sig)
   } else {
     const global = await sdk.fetchGlobal()
-    const buyState = await sdk.fetchBuyState(mint, keypair.publicKey, TOKEN_2022_PROGRAM_ID)
+    const buyState = await sdk.fetchBuyState(mint, keypair.publicKey, tokenProgram)
     const amount = getBuyTokenAmountFromSolAmount({
       global,
       feeConfig: null,
@@ -236,7 +245,7 @@ async function doBuyback(
       amount,
       solAmount: buySolBn,
       slippage: 2,
-      tokenProgram: TOKEN_2022_PROGRAM_ID,
+      tokenProgram,
     })
     appendV2Account(buyIx as unknown as Ix[], PUMP_PROGRAM_ID, bondingCurveV2Pda(mint))
     const sig = await sendTx(connection, new Transaction().add(...(buyIx as unknown as import('@solana/web3.js').TransactionInstruction[])), keypair)
@@ -257,7 +266,7 @@ async function doBuyback(
   let burnedAmount = '0'
   if (tokenBalance > BigInt(0)) {
     console.log(`${tag} [BURN] burning ${tokenBalance.toString()} tokens`)
-    const burnIx = createBurnInstruction(ata, mint, keypair.publicKey, tokenBalance, [], TOKEN_2022_PROGRAM_ID)
+    const burnIx = createBurnInstruction(ata, mint, keypair.publicKey, tokenBalance, [], tokenProgram)
     const sig = await sendTx(connection, new Transaction().add(burnIx), keypair)
     console.log(`${tag} [BURN] burn tx: ${sig}`)
     txs.push(sig)
@@ -345,7 +354,9 @@ export async function runOnChainCycle(
     return { success: true, message: 'claimed fees, nothing left after gas', strategy: 'none' }
   }
 
-  // Step 3: Check migration status
+  // Step 3: Detect token program + check migration status
+  const tokenProgram = await getTokenProgramForMint(connection, mint)
+  console.log(`${tag} token program: ${tokenProgram.equals(TOKEN_2022_PROGRAM_ID) ? 'Token-2022' : 'SPL Token'}`)
   const isMigrated = await checkMigration(connection, mint)
   console.log(`${tag} migration status: ${isMigrated ? 'migrated (AMM)' : 'bonding curve'}`)
 
@@ -365,7 +376,7 @@ export async function runOnChainCycle(
     const lpLamports = Math.floor(availableLamports * strategy.lpFraction)
     buyLamports = availableLamports - lpLamports
 
-    const lpResult = await addLiquidity(connection, keypair, mint, lpLamports, txs, tag)
+    const lpResult = await addLiquidity(connection, keypair, mint, lpLamports, txs, tag, tokenProgram)
     if (lpResult.sol === -1) {
       lpError = lpResult.error
       buyLamports = availableLamports
@@ -381,7 +392,7 @@ export async function runOnChainCycle(
 
   if (buyLamports > 0 && strategy.buybackFraction > 0) {
     try {
-      const result = await doBuyback(connection, keypair, mint, sdk, isMigrated, buyLamports, txs, tag)
+      const result = await doBuyback(connection, keypair, mint, sdk, isMigrated, buyLamports, txs, tag, tokenProgram)
       buySol = result.buySol
       burnedAmount = result.burnedAmount
     } catch (err) {
