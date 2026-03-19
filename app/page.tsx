@@ -43,14 +43,14 @@ export default function Home() {
     <main style={{ background: 'var(--bg)' }}>
 
       {/* ── HERO ──────────────────────────────────────────── */}
-      <section className="min-h-screen flex flex-col justify-end px-6 sm:px-16 pb-20 pt-28">
+      <section className="flex flex-col justify-end px-6 sm:px-16 pb-16 pt-32">
         <div className="max-w-6xl mx-auto w-full">
 
-          <motion.p {...fadeIn(0)} className="text-[11px] font-mono uppercase tracking-widest mb-10" style={{ color: 'var(--muted)' }}>
+          <motion.p {...fadeIn(0)} className="text-[11px] font-mono uppercase tracking-widest mb-6" style={{ color: 'var(--muted)' }}>
             autonomous agents · solana
           </motion.p>
 
-          <motion.h1 {...fadeUp(0.08)} className="font-bold mb-20 lg:mb-24" style={{ fontSize: 'clamp(3.2rem, 7.5vw, 7rem)', color: 'var(--dark)', lineHeight: '0.95', letterSpacing: '-0.045em' }}>
+          <motion.h1 {...fadeUp(0.08)} className="font-bold mb-12 lg:mb-14" style={{ fontSize: 'clamp(3.2rem, 7.5vw, 7rem)', color: 'var(--dark)', lineHeight: '0.95', letterSpacing: '-0.045em' }}>
             your token&apos;s<br />
             autonomous<br />
             <span style={{ color: 'var(--blue)' }}>agent.</span>
@@ -107,11 +107,11 @@ export default function Home() {
       </section>
 
       {/* ── STATS + FEED ─────────────────────────────────── */}
-      <section className="px-6 sm:px-16 py-28">
+      <section className="px-6 sm:px-16 py-16">
         <div className="max-w-6xl mx-auto">
 
           {/* divider */}
-          <motion.div {...inView()} className="mb-20" style={{ height: '1px', background: 'var(--border)' }} />
+          <motion.div {...inView()} className="mb-12" style={{ height: '1px', background: 'var(--border)' }} />
 
           {/* stats row */}
           <motion.div {...inView(0.05)} className="flex flex-wrap gap-y-10">
@@ -136,15 +136,15 @@ export default function Home() {
           </motion.div>
 
           {/* divider */}
-          <motion.div {...inView(0.2)} className="mt-20" style={{ height: '1px', background: 'var(--border)' }} />
+          <motion.div {...inView(0.2)} className="mt-12" style={{ height: '1px', background: 'var(--border)' }} />
 
         </div>
       </section>
 
       {/* ── HOW IT WORKS ─────────────────────────────────── */}
-      <section className="py-28 px-6 sm:px-16">
+      <section className="py-16 px-6 sm:px-16">
         <div className="max-w-6xl mx-auto">
-          <motion.p {...inView()} className="text-[10px] font-mono uppercase tracking-widest mb-20" style={{ color: 'var(--muted)' }}>how it works</motion.p>
+          <motion.p {...inView()} className="text-[10px] font-mono uppercase tracking-widest mb-10" style={{ color: 'var(--muted)' }}>how it works</motion.p>
 
           {[
             { n: '01', title: 'create an account', desc: 'sign up with username and password. a dedicated solana wallet is auto-generated for you. fund it with sol.', note: 'min 0.05 SOL to deploy' },
@@ -175,7 +175,7 @@ export default function Home() {
       </section>
 
       {/* ── FEATURES ─────────────────────────────────────── */}
-      <section className="py-28 px-6 sm:px-16">
+      <section className="py-16 px-6 sm:px-16">
         <div className="max-w-6xl mx-auto">
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-20 lg:gap-32">
@@ -225,9 +225,9 @@ export default function Home() {
       </section>
 
       {/* ── CTA ──────────────────────────────────────────── */}
-      <section className="py-32 px-6 sm:px-16">
+      <section className="py-20 px-6 sm:px-16">
         <div className="max-w-6xl mx-auto">
-          <motion.div {...inView()} className="mb-20" style={{ height: '1px', background: 'var(--border)' }} />
+          <motion.div {...inView()} className="mb-12" style={{ height: '1px', background: 'var(--border)' }} />
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-16 lg:gap-24 items-end">
             <motion.div {...inView(0.05)}>
@@ -249,7 +249,7 @@ export default function Home() {
             </motion.div>
           </div>
 
-          <motion.div {...inView(0.15)} className="mt-20" style={{ height: '1px', background: 'var(--border)' }} />
+          <motion.div {...inView(0.15)} className="mt-12" style={{ height: '1px', background: 'var(--border)' }} />
         </div>
       </section>
 
