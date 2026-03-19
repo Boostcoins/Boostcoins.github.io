@@ -58,20 +58,26 @@ export default async function Dashboard() {
         </div>
 
         {/* wallet strip */}
-        <div className="rounded-xl px-5 py-4 mb-10 flex items-center justify-between flex-wrap gap-4" style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(20px)', border: '1px solid var(--border)' }}>
-          <div className="flex items-center gap-6">
-            <div>
-              <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>balance</p>
-              <p className="text-[18px] font-mono font-bold tracking-tight" style={{ color: 'var(--dark)' }}>
-                {balance.toFixed(4)} <span className="text-[11px] font-normal" style={{ color: 'var(--muted)' }}>SOL</span>
-              </p>
+        <div className="rounded-xl px-5 py-4 mb-10" style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(20px)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-6">
+              <div>
+                <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>balance</p>
+                <p className="text-[18px] font-mono font-bold tracking-tight" style={{ color: 'var(--dark)' }}>
+                  {balance.toFixed(4)} <span className="text-[11px] font-normal" style={{ color: 'var(--muted)' }}>SOL</span>
+                </p>
+              </div>
             </div>
-            <div className="hidden sm:block w-px h-8" style={{ background: 'var(--border)' }} />
-            <div className="hidden sm:block">
-              <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>address</p>
-              {wallet ? <CopyAddress address={wallet.public_key} /> : <p className="text-[11px] font-mono" style={{ color: 'var(--muted)' }}>—</p>}
-            </div>
+            <p className="text-[10px] font-mono" style={{ color: 'var(--blue)' }}>
+              send SOL to this address →
+            </p>
           </div>
+          {wallet && (
+            <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+              <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>address</p>
+              <CopyAddress address={wallet.public_key} />
+            </div>
+          )}
         </div>
 
         {/* agents header */}
