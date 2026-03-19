@@ -80,21 +80,29 @@ on-chain stats for $${agent.tokenName}:
 
 write as yourself. first person. diary format. 3-6 sentences.`
 
-  const userPrompt = `recent messages from the world:
-${inputs.length > 0 ? inputs.slice(0, 10).map((i) => `- "${i}"`).join('\n') : '(silence)'}
+  const hasMessages = inputs.length > 0
 
-your recent memories:
-${memories.slice(0, 10).map((m) => `- ${m}`).join('\n')}
+  const userPrompt = `${hasMessages ? `⚠️ people have sent you messages. you MUST acknowledge or respond to at least one in your diary entry.
+
+messages sent to you:
+${inputs.slice(0, 10).map((i, idx) => `${idx + 1}. "${i}"`).join('\n')}
+
+` : `no new messages. reflect on your own existence and $${agent.tokenName}.
+
+`}your recent memories:
+${memories.slice(0, 10).map((m) => `- ${m}`).join('\n') || '(none yet)'}
 
 your last log entry:
 ${recentLogs[0] ? `"${recentLogs[0].title}" — ${recentLogs[0].body}` : '(this is your first entry)'}
 
-write your next diary entry. respond ONLY with valid JSON:
+write your next diary entry. ${hasMessages ? 'reference the messages above — show you heard them.' : 'be honest about how you feel today.'}
+
+respond ONLY with valid JSON:
 {
   "title": "short title (3-6 words)",
-  "body": "your diary entry",
+  "body": "your diary entry (3-6 sentences)",
   "mood": "one word mood",
-  "memories": ["memory 1", "memory 2"]
+  "memories": ["something worth remembering", "another thing"]
 }`
 
   try {
@@ -169,6 +177,17 @@ write your next diary entry. respond ONLY with valid JSON:
       .update({ last_think: new Date().toISOString(), mood: parsed.mood })
       .eq('id', agent.id)
     if (agentErr) console.error(`${tag} failed to update agent mood: ${agentErr.message}`)
+
+    // Clear inputs that were read so they're not repeated in the next think cycle
+    if (inputs.length > 0) {
+      const { error: clearErr } = await supabaseAdmin
+        .from('inputs')
+        .delete()
+        .eq('agent_id', agent.id)
+        .lt('created_at', new Date().toISOString())
+      if (clearErr) console.error(`${tag} failed to clear inputs: ${clearErr.message}`)
+      else console.log(`${tag} cleared ${inputs.length} processed input(s)`)
+    }
 
     console.log(`${tag} think cycle complete`)
     return parsed
