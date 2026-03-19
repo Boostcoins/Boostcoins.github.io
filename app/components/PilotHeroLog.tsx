@@ -56,10 +56,10 @@ export default function PilotHeroLog() {
         }
 
         if (log) {
-          const bodyLines = log.body.split(/\.\s+/).filter(Boolean).slice(0, 3)
-          for (const line of bodyLines) {
-            const clean = line.endsWith('.') ? line : line + '.'
-            result.push({ text: clean })
+          const sentences = log.body.match(/[^.!?]+[.!?]+/g) || [log.body]
+          const trimmed = sentences.map(s => s.trim()).filter(s => s.length > 0).slice(0, 3)
+          for (const s of trimmed) {
+            result.push({ text: s })
           }
           result.push({ text: '' })
           if (log.mood) {
