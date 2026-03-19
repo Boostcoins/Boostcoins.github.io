@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getWalletBalance } from '@/lib/wallet'
 import CopyAddress from '../components/CopyAddress'
+import WalletActions from '../components/WalletActions'
 
 function daysAlive(created: string) {
   return Math.floor((Date.now() - new Date(created).getTime()) / (1000 * 60 * 60 * 24))
@@ -68,13 +69,16 @@ export default async function Dashboard() {
                 </p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-[10px] font-mono" style={{ color: 'var(--blue)' }}>
-                send SOL to this address →
-              </p>
-              <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--muted)', opacity: 0.6 }}>
-                min ~0.1 SOL recommended
-              </p>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-[10px] font-mono" style={{ color: 'var(--blue)' }}>
+                  send SOL to this address →
+                </p>
+                <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--muted)', opacity: 0.6 }}>
+                  min ~0.1 SOL recommended
+                </p>
+              </div>
+              <WalletActions balance={balance} />
             </div>
           </div>
           {wallet && (
