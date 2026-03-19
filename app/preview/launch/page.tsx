@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import Navbar from '../../components/Navbar'
 
 const glass = {
@@ -13,134 +12,37 @@ const glass = {
 
 const inputStyle = { ...glass, color: 'var(--dark)' } as const
 
-export default function LaunchAndDeploy() {
-  const router = useRouter()
+export default function PreviewLaunch() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [token, setToken] = useState({ name: '', symbol: '', description: '', twitter: '', telegram: '', website: '' })
   const [agent, setAgent] = useState({ name: '', persona: '' })
-  const [image, setImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [initialBuy, setInitialBuy] = useState('0.1')
-
-  const [step, setStep] = useState<'form' | 'launching' | 'deploying' | 'done'>('form')
-  const [statusMsg, setStatusMsg] = useState('')
-  const [error, setError] = useState('')
-
-  const hasSomething = !!(token.name || token.symbol || token.description || agent.name || imagePreview)
 
   function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    setImage(file)
     setImagePreview(URL.createObjectURL(file))
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!image) { setError('upload a token image'); return }
-    setError('')
-
-    setStep('launching')
-    setStatusMsg('uploading metadata to ipfs...')
-
-    let mintAddress = ''
-    let imageUrl = ''
-    try {
-      const fd = new FormData()
-      fd.append('name', token.name)
-      fd.append('symbol', token.symbol)
-      fd.append('description', token.description)
-      fd.append('twitter', token.twitter)
-      fd.append('telegram', token.telegram)
-      fd.append('website', token.website)
-      fd.append('image', image)
-      fd.append('initialBuy', initialBuy)
-
-      setStatusMsg('creating token on pump.fun...')
-      const launchRes = await fetch('/api/launch', { method: 'POST', body: fd })
-      const launchData = await launchRes.json()
-
-      if (!launchRes.ok) {
-        setError(launchData.error || 'token launch failed')
-        setStep('form')
-        return
-      }
-
-      mintAddress = launchData.mint
-      imageUrl = launchData.imageUrl || ''
-    } catch {
-      setError('network error during launch')
-      setStep('form')
-      return
-    }
-
-    setStep('deploying')
-    setStatusMsg('deploying your agent...')
-
-    try {
-      const deployRes = await fetch('/api/deploy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: agent.name,
-          tokenName: token.symbol,
-          tokenCa: mintAddress,
-          persona: agent.persona,
-          imageUrl,
-          twitter: token.twitter || null,
-          telegram: token.telegram || null,
-          website: token.website || null,
-        }),
-      })
-      const deployData = await deployRes.json()
-
-      if (!deployRes.ok) {
-        setError(deployData.error || 'agent deploy failed')
-        setStep('form')
-        return
-      }
-
-      router.push(`/agent/${deployData.agentId}`)
-    } catch {
-      setError('network error during deploy')
-      setStep('form')
-    }
+    alert('This is a preview — nothing is submitted. In production this launches the token on pump.fun and deploys the agent.')
   }
 
-  if (step === 'launching' || step === 'deploying') {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: 'var(--bg)' }}>
-        <div className="text-center">
-          <div className="w-8 h-8 rounded-full border-2 border-t-transparent mx-auto mb-5 animate-spin" style={{ borderColor: 'var(--blue)', borderTopColor: 'transparent' }} />
-          <p className="text-[15px] font-medium mb-2" style={{ color: 'var(--dark)' }}>{statusMsg}</p>
-          <div className="flex items-center justify-center gap-6 mt-4">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full" style={{ background: step === 'deploying' ? 'var(--blue)' : 'var(--muted)', opacity: step === 'deploying' ? 1 : 0.4 }} />
-              <span className="text-[12px] font-mono" style={{ color: step === 'launching' ? 'var(--blue)' : 'var(--muted)' }}>01 launch token</span>
-            </div>
-            <div className="w-8 h-px" style={{ background: 'var(--border)' }} />
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full" style={{ background: step === 'deploying' ? 'var(--blue)' : 'var(--muted)', opacity: step === 'deploying' ? 1 : 0.4 }} />
-              <span className="text-[12px] font-mono" style={{ color: step === 'deploying' ? 'var(--blue)' : 'var(--muted)' }}>02 deploy agent</span>
-            </div>
-          </div>
-          <p className="text-[12px] mt-6" style={{ color: 'var(--muted)' }}>do not close this page</p>
-        </div>
-      </div>
-    )
-  }
+  const hasSomething = !!(token.name || token.symbol || token.description || agent.name || imagePreview)
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <Navbar />
+      <Navbar username="satoshi" />
 
       <div className="px-6 sm:px-16 pt-24 pb-24 max-w-5xl mx-auto">
 
         {/* top bar */}
         <div className="flex items-center justify-between mb-12">
           <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="text-[15px] font-bold tracking-tight" style={{ color: 'var(--dark)' }}>dashboard</Link>
+            <Link href="/preview/dashboard" className="text-[15px] font-bold tracking-tight" style={{ color: 'var(--dark)' }}>satoshi</Link>
             <span className="text-[11px] font-mono" style={{ color: 'var(--muted)' }}>/</span>
             <span className="text-[11px] font-mono" style={{ color: 'var(--muted)' }}>launch</span>
           </div>
@@ -149,7 +51,7 @@ export default function LaunchAndDeploy() {
         {/* 2-col layout */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 items-start">
 
-          {/* LEFT: FORM */}
+          {/* ── LEFT: FORM ── */}
           <form onSubmit={handleSubmit}>
 
             {/* section 1: token */}
@@ -176,19 +78,19 @@ export default function LaunchAndDeploy() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>name</label>
-                    <input type="text" value={token.name} onChange={(e) => setToken({ ...token, name: e.target.value })} placeholder="e.g. Pilot" required maxLength={32}
+                    <input type="text" value={token.name} onChange={(e) => setToken({ ...token, name: e.target.value })} placeholder="e.g. Pilot" maxLength={32}
                       className="w-full rounded-lg px-4 py-2.5 text-[13px] outline-none" style={inputStyle} />
                   </div>
                   <div>
                     <label className="block text-[10px] font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>ticker</label>
-                    <input type="text" value={token.symbol} onChange={(e) => setToken({ ...token, symbol: e.target.value.toUpperCase() })} placeholder="PILOT" required maxLength={10}
+                    <input type="text" value={token.symbol} onChange={(e) => setToken({ ...token, symbol: e.target.value.toUpperCase() })} placeholder="PILOT" maxLength={10}
                       className="w-full rounded-lg px-4 py-2.5 text-[13px] outline-none font-mono" style={inputStyle} />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-[10px] font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>description</label>
-                  <textarea value={token.description} onChange={(e) => setToken({ ...token, description: e.target.value })} placeholder="what is this token about?" required rows={3} maxLength={200}
+                  <textarea value={token.description} onChange={(e) => setToken({ ...token, description: e.target.value })} placeholder="what is this token about?" rows={3} maxLength={200}
                     className="w-full rounded-lg px-4 py-2.5 text-[13px] outline-none resize-none" style={inputStyle} />
                   <p className="text-[10px] font-mono mt-1" style={{ color: 'var(--muted)', opacity: 0.5 }}>{token.description.length}/200</p>
                 </div>
@@ -224,7 +126,7 @@ export default function LaunchAndDeploy() {
               <div className="flex flex-col gap-5">
                 <div>
                   <label className="block text-[10px] font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>agent name</label>
-                  <input type="text" value={agent.name} onChange={(e) => setAgent({ ...agent, name: e.target.value })} placeholder="e.g. XAGENT" required maxLength={32}
+                  <input type="text" value={agent.name} onChange={(e) => setAgent({ ...agent, name: e.target.value })} placeholder="e.g. XAGENT" maxLength={32}
                     className="w-full rounded-lg px-4 py-2.5 text-[13px] outline-none" style={inputStyle} />
                 </div>
 
@@ -232,7 +134,7 @@ export default function LaunchAndDeploy() {
                   <label className="block text-[10px] font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>persona</label>
                   <textarea value={agent.persona} onChange={(e) => setAgent({ ...agent, persona: e.target.value })}
                     placeholder="describe your agent's voice and personality. this shapes how it thinks and writes its diary entries."
-                    required rows={4} maxLength={500}
+                    rows={4} maxLength={500}
                     className="w-full rounded-lg px-4 py-2.5 text-[13px] outline-none resize-none" style={inputStyle} />
                   <p className="text-[10px] font-mono mt-1" style={{ color: 'var(--muted)', opacity: 0.5 }}>{agent.persona.length}/500</p>
                 </div>
@@ -253,23 +155,17 @@ export default function LaunchAndDeploy() {
               ))}
             </div>
 
-            {error && (
-              <div className="rounded-xl px-4 py-3 mb-4" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
-                <p className="text-[13px]" style={{ color: '#ef4444' }}>{error}</p>
-              </div>
-            )}
-
             {/* submit */}
             <button type="submit"
               className="w-full py-3 rounded-lg font-mono text-[12px] font-semibold"
               style={{ background: 'var(--dark)', color: 'var(--bg)', cursor: 'pointer' }}
             >
-              launch token & deploy agent →
+              launch token & deploy agent
             </button>
 
           </form>
 
-          {/* RIGHT: LIVE PREVIEW */}
+          {/* ── RIGHT: LIVE PREVIEW ── */}
           <div className="hidden lg:block lg:sticky lg:top-28">
             <p className="text-[10px] font-mono uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>preview</p>
 
@@ -302,10 +198,12 @@ export default function LaunchAndDeploy() {
                   </span>
                 </div>
 
+                {/* contract placeholder */}
                 <p className="text-[10px] font-mono mb-4" style={{ color: 'var(--muted)', opacity: 0.35 }}>
                   Gk4dj...pump
                 </p>
 
+                {/* description */}
                 <p className="text-[12px] leading-[1.6] mb-5" style={{ color: 'var(--muted)', opacity: token.description ? 0.8 : 0.25 }}>
                   {token.description || 'your token description will appear here as you type...'}
                 </p>
@@ -333,6 +231,7 @@ export default function LaunchAndDeploy() {
                   ))}
                 </div>
 
+                {/* divider */}
                 <div className="mb-5" style={{ height: '1px', background: 'var(--border)' }} />
 
                 {/* agent section */}

@@ -1,9 +1,32 @@
-import { redirect } from 'next/navigation'
+'use client'
+
 import Link from 'next/link'
-import { getSession } from '@/lib/auth'
-import { supabaseAdmin } from '@/lib/supabase'
-import { getWalletBalance } from '@/lib/wallet'
-import Navbar from '../components/Navbar'
+import Navbar from '../../components/Navbar'
+
+const MOCK_WALLET = '9xKv3mPqR7nW5tYzFwE2qA8bJ1cT4vP6uH0dGsL3kNx'
+
+const MOCK_AGENTS = [
+  {
+    id: 'mock-1',
+    name: 'XAGENT',
+    token_name: 'XYZ',
+    token_ca: 'Gk4djR8kp2vM9nYzFwE7qA3bH5cT1xP6uJ0wLmN4pump',
+    status: 'active' as const,
+    mood: 'calculated',
+    last_think: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
+    created_at: new Date(Date.now() - 23 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'mock-2',
+    name: 'BURNBOT',
+    token_name: 'BURN',
+    token_ca: 'Hx7ypQ3kL5mW8nRzFwE1qA9bJ4cT6vP2uK0dGsN3pump',
+    status: 'active' as const,
+    mood: 'restless',
+    last_think: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
+    created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+]
 
 function daysAlive(created: string) {
   return Math.floor((Date.now() - new Date(created).getTime()) / (1000 * 60 * 60 * 24))
@@ -15,43 +38,22 @@ function timeAgo(date: string) {
   return `${Math.floor(m / 60)}h ago`
 }
 
-export default async function Dashboard() {
-  const session = await getSession()
-  if (!session) redirect('/login')
-
-  const [userRes, walletRes, agentsRes] = await Promise.all([
-    supabaseAdmin.from('users').select('id, username').eq('id', session.userId).single(),
-    supabaseAdmin.from('wallets').select('public_key').eq('user_id', session.userId).single(),
-    supabaseAdmin
-      .from('agents')
-      .select('id, name, token_name, token_ca, status, mood, last_think, created_at')
-      .eq('user_id', session.userId)
-      .order('created_at', { ascending: false }),
-  ])
-
-  const user = userRes.data
-  const wallet = walletRes.data
-  let balance = 0
-  if (wallet) {
-    try { balance = await getWalletBalance(wallet.public_key) } catch {}
-  }
-  const agents = agentsRes.data ?? []
-
+export default function PreviewDashboard() {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <Navbar username={user?.username} />
+      <Navbar username="satoshi" />
 
       <div className="px-6 sm:px-16 pt-24 pb-24 max-w-5xl mx-auto">
 
         {/* top bar */}
         <div className="flex items-center justify-between mb-12">
           <div className="flex items-center gap-3">
-            <h1 className="text-[15px] font-bold tracking-tight" style={{ color: 'var(--dark)' }}>{user?.username}</h1>
+            <h1 className="text-[15px] font-bold tracking-tight" style={{ color: 'var(--dark)' }}>satoshi</h1>
             <span className="text-[11px] font-mono" style={{ color: 'var(--muted)' }}>/</span>
             <span className="text-[11px] font-mono" style={{ color: 'var(--muted)' }}>dashboard</span>
           </div>
           <Link
-            href="/dashboard/launch"
+            href="/preview/launch"
             className="font-mono text-[11px] font-semibold px-4 py-2 rounded-lg"
             style={{ background: 'var(--dark)', color: 'var(--bg)' }}
           >
@@ -65,19 +67,19 @@ export default async function Dashboard() {
             <div>
               <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>balance</p>
               <p className="text-[18px] font-mono font-bold tracking-tight" style={{ color: 'var(--dark)' }}>
-                {balance.toFixed(4)} <span className="text-[11px] font-normal" style={{ color: 'var(--muted)' }}>SOL</span>
+                1.4821 <span className="text-[11px] font-normal" style={{ color: 'var(--muted)' }}>SOL</span>
               </p>
             </div>
             <div className="hidden sm:block w-px h-8" style={{ background: 'var(--border)' }} />
             <div className="hidden sm:block">
               <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>address</p>
               <p className="text-[11px] font-mono" style={{ color: 'var(--muted)' }}>
-                {wallet ? `${wallet.public_key.slice(0, 16)}...${wallet.public_key.slice(-6)}` : '—'}
+                {MOCK_WALLET.slice(0, 16)}...{MOCK_WALLET.slice(-6)}
               </p>
             </div>
           </div>
           <p className="text-[10px] font-mono" style={{ color: 'var(--blue)' }}>
-            send SOL to this address →
+            fund wallet →
           </p>
         </div>
 
@@ -87,72 +89,56 @@ export default async function Dashboard() {
             your agents
           </p>
           <p className="text-[10px] font-mono" style={{ color: 'var(--muted)' }}>
-            {agents.length} / 3
+            {MOCK_AGENTS.length} / 3
           </p>
         </div>
 
         {/* agent cards */}
-        {agents.length === 0 ? (
-          <div
-            className="rounded-xl p-16 text-center mb-12"
-            style={{ border: '2px dashed var(--border)', background: 'rgba(255,255,255,0.3)' }}
-          >
-            <p className="text-[13px] font-mono mb-3" style={{ color: 'var(--muted)' }}>no agents deployed yet</p>
-            <Link href="/dashboard/launch" className="text-[13px] font-mono font-semibold" style={{ color: 'var(--blue)' }}>
-              launch your first agent →
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 mb-12">
-            {agents.map((agent) => (
-              <Link
-                key={agent.id}
-                href={`/agent/${agent.id}`}
-                className="block rounded-xl px-5 py-5"
-                style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(20px)', border: '1px solid var(--border)' }}
-              >
-                <div className="flex items-start justify-between gap-4 mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center font-mono text-[10px] font-bold" style={{ background: 'var(--dark)', color: 'var(--bg)' }}>
-                      {agent.name.charAt(0)}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-[14px] font-bold tracking-tight" style={{ color: 'var(--dark)' }}>{agent.name}</p>
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: agent.status === 'active' ? 'var(--blue)' : 'var(--muted)' }} />
-                      </div>
-                      <p className="text-[11px] font-mono" style={{ color: 'var(--muted)' }}>
-                        ${agent.token_name} · {agent.token_ca.slice(0, 6)}...{agent.token_ca.slice(-4)}
-                      </p>
-                    </div>
+        <div className="grid grid-cols-1 gap-3 mb-12">
+          {MOCK_AGENTS.map((agent) => (
+            <Link
+              key={agent.id}
+              href="/preview/agent"
+              className="block rounded-xl px-5 py-5"
+              style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(20px)', border: '1px solid var(--border)' }}
+            >
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center font-mono text-[10px] font-bold" style={{ background: 'var(--dark)', color: 'var(--bg)' }}>
+                    {agent.name.charAt(0)}
                   </div>
-                  <span className="text-[11px] font-mono shrink-0" style={{ color: 'var(--muted)' }}>
-                    →
-                  </span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[14px] font-bold tracking-tight" style={{ color: 'var(--dark)' }}>{agent.name}</p>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: agent.status === 'active' ? 'var(--blue)' : 'var(--muted)' }} />
+                    </div>
+                    <p className="text-[11px] font-mono" style={{ color: 'var(--muted)' }}>
+                      ${agent.token_name} · {agent.token_ca.slice(0, 6)}...{agent.token_ca.slice(-4)}
+                    </p>
+                  </div>
                 </div>
+                <span className="text-[11px] font-mono shrink-0" style={{ color: 'var(--muted)' }}>
+                  →
+                </span>
+              </div>
 
-                <div className="flex items-center gap-3 flex-wrap">
-                  {agent.mood && (
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded" style={{ background: 'var(--bg)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
-                      {agent.mood}
-                    </span>
-                  )}
-                  <span className="text-[10px] font-mono" style={{ color: 'var(--muted)', opacity: 0.6 }}>
-                    {daysAlive(agent.created_at)}d alive
-                  </span>
-                  {agent.last_think && (
-                    <>
-                      <span className="text-[10px] font-mono" style={{ color: 'var(--muted)', opacity: 0.6 }}>·</span>
-                      <span className="text-[10px] font-mono" style={{ color: 'var(--muted)', opacity: 0.6 }}>
-                        last think {timeAgo(agent.last_think)}
-                      </span>
-                    </>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded" style={{ background: 'var(--bg)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
+                  {agent.mood}
+                </span>
+                <span className="text-[10px] font-mono" style={{ color: 'var(--muted)', opacity: 0.6 }}>
+                  {daysAlive(agent.created_at)}d alive
+                </span>
+                <span className="text-[10px] font-mono" style={{ color: 'var(--muted)', opacity: 0.6 }}>
+                  ·
+                </span>
+                <span className="text-[10px] font-mono" style={{ color: 'var(--muted)', opacity: 0.6 }}>
+                  last think {timeAgo(agent.last_think)}
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
 
         {/* quick guide */}
         <div className="mb-4">

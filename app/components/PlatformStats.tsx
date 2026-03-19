@@ -38,18 +38,18 @@ export default function PlatformStats() {
   ]
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+    <>
       {items.map((s) => (
         <div key={s.label}>
           <p
-            className="font-bold tracking-tighter"
-            style={{ fontSize: 'clamp(1.8rem,4vw,3rem)', color: s.green ? 'var(--green)' : 'var(--white)' }}
+            className="font-mono font-bold tracking-tight"
+            style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', color: 'var(--dark)', lineHeight: '1' }}
           >
             {s.value}
           </p>
-          <p className="mt-1 text-[12px]" style={{ color: 'var(--muted)' }}>{s.label}</p>
+          <p className="mt-2 text-[10px] font-mono uppercase tracking-widest" style={{ color: 'var(--muted)' }}>{s.label}</p>
         </div>
       ))}
-    </div>
+    </>
   )
 }
