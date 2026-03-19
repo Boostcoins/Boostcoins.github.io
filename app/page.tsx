@@ -88,7 +88,7 @@ export default function Home() {
             <div className="flex-1 min-w-[140px]">
               <p className="text-[10px] font-mono uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>platform</p>
             </div>
-            <div className="w-full sm:w-auto flex-[3] grid grid-cols-2 sm:grid-cols-4 gap-y-8">
+            <div className="w-full sm:w-auto flex-[3] grid grid-cols-3 sm:grid-cols-6 gap-y-8">
               <PlatformStats />
             </div>
           </motion.div>

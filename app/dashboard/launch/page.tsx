@@ -45,6 +45,8 @@ export default function LaunchAndDeploy() {
 
     let mintAddress = ''
     let imageUrl = ''
+    let agentWalletPublicKey = ''
+    let agentWalletEncryptedPk = ''
     try {
       const fd = new FormData()
       fd.append('name', token.name)
@@ -68,6 +70,8 @@ export default function LaunchAndDeploy() {
 
       mintAddress = launchData.mint
       imageUrl = launchData.imageUrl || ''
+      agentWalletPublicKey = launchData.agentWalletPublicKey || ''
+      agentWalletEncryptedPk = launchData.agentWalletEncryptedPk || ''
     } catch {
       setError('network error during launch')
       setStep('form')
@@ -90,6 +94,8 @@ export default function LaunchAndDeploy() {
           twitter: token.twitter || null,
           telegram: token.telegram || null,
           website: token.website || null,
+          agentWalletPublicKey,
+          agentWalletEncryptedPk,
         }),
       })
       const deployData = await deployRes.json()

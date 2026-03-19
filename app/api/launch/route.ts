@@ -15,7 +15,7 @@ import {
 import BN from 'bn.js'
 import { getSession } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
-import { keypairFromEncrypted, getWalletBalance } from '@/lib/wallet'
+import { keypairFromEncrypted, getWalletBalance, generateWallet } from '@/lib/wallet'
 
 const RPC_URL = process.env.RPC_URL || 'https://api.mainnet-beta.solana.com'
 
@@ -61,8 +61,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'wallet not found' }, { status: 400 })
     }
 
+    // Master wallet — pays for the transaction
     const keypair = keypairFromEncrypted(walletRow.encrypted_private_key)
-    console.log(`${tag} wallet: ${walletRow.public_key}`)
+    console.log(`${tag} master wallet: ${walletRow.public_key}`)
+
+    // Agent wallet — dedicated keypair that becomes the pump.fun creator (receives fees)
+    const agentWallet = generateWallet()
+    const agentKeypair = keypairFromEncrypted(agentWallet.encryptedPrivateKey)
+    console.log(`${tag} agent wallet (creator): ${agentWallet.publicKey}`)
 
     // Pre-flight balance check — must have enough for launch fee + initial buy + deploy minimum
     const initialBuySol = parseFloat(initialBuyStr || '0')
@@ -163,7 +169,7 @@ export async function POST(req: NextRequest) {
         name,
         symbol,
         uri: metadataUri,
-        creator: keypair.publicKey,
+        creator: agentKeypair.publicKey,
         user: keypair.publicKey,
         solAmount,
         amount: tokenAmount,
@@ -175,7 +181,7 @@ export async function POST(req: NextRequest) {
         name,
         symbol,
         uri: metadataUri,
-        creator: keypair.publicKey,
+        creator: agentKeypair.publicKey,
         user: keypair.publicKey,
       })
       ixArray = result as unknown as import('@solana/web3.js').TransactionInstruction[]
@@ -199,7 +205,7 @@ export async function POST(req: NextRequest) {
     tx.recentBlockhash = blockhash
     tx.feePayer = keypair.publicKey
 
-    const sig = await sendAndConfirmTransaction(connection, tx, [keypair, mint], {
+    const sig = await sendAndConfirmTransaction(connection, tx, [keypair, mint, agentKeypair], {
       skipPreflight: false,
       preflightCommitment: 'processed',
     })
@@ -207,7 +213,13 @@ export async function POST(req: NextRequest) {
     const mintAddress = mint.publicKey.toBase58()
     console.log(`${tag} token created! mint: ${mintAddress} | tx: ${sig}`)
 
-    return NextResponse.json({ mint: mintAddress, imageUrl, metadataUri })
+    return NextResponse.json({
+      mint: mintAddress,
+      imageUrl,
+      metadataUri,
+      agentWalletPublicKey: agentWallet.publicKey,
+      agentWalletEncryptedPk: agentWallet.encryptedPrivateKey,
+    })
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     const stack = err instanceof Error ? err.stack : undefined

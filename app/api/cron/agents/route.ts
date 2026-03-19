@@ -17,10 +17,10 @@ export async function GET(req: NextRequest) {
   const started = Date.now()
   console.log(`${tag} cron triggered at ${new Date().toISOString()}`)
 
-  // Fetch all active agents
+  // Fetch all active agents — each agent carries its own wallet
   const { data: agents, error } = await supabaseAdmin
     .from('agents')
-    .select('id, name, token_name, token_ca, persona, user_id')
+    .select('id, name, token_name, token_ca, persona, user_id, wallet_public_key, wallet_encrypted_pk')
     .eq('status', 'active')
 
   if (error) {
@@ -35,28 +35,33 @@ export async function GET(req: NextRequest) {
 
   console.log(`${tag} found ${agents.length} active agent(s)`)
 
-  // Fetch wallets for all relevant users in one query
-  const userIds = [...new Set(agents.map((a) => a.user_id))]
-  const { data: wallets, error: walletsErr } = await supabaseAdmin
-    .from('wallets')
-    .select('user_id, encrypted_private_key')
-    .in('user_id', userIds)
+  // Fallback: fetch user wallets for agents that don't yet have their own wallet
+  const agentsWithoutWallet = agents.filter((a) => !a.wallet_encrypted_pk)
+  let userWalletMap: Record<string, string> = {}
 
-  if (walletsErr) console.error(`${tag} failed to fetch wallets: ${walletsErr.message}`)
-
-  const walletMap = Object.fromEntries((wallets ?? []).map((w) => [w.user_id, w.encrypted_private_key]))
+  if (agentsWithoutWallet.length > 0) {
+    const userIds = [...new Set(agentsWithoutWallet.map((a) => a.user_id))]
+    const { data: wallets } = await supabaseAdmin
+      .from('wallets')
+      .select('user_id, encrypted_private_key')
+      .in('user_id', userIds)
+    userWalletMap = Object.fromEntries((wallets ?? []).map((w) => [w.user_id, w.encrypted_private_key]))
+  }
 
   const results = await Promise.allSettled(
     agents.map(async (agent) => {
       const agentTag = `[CRON:${agent.id}]`
-      const encryptedKey = walletMap[agent.user_id]
+
+      // Each agent uses its own dedicated wallet — never shared with other agents
+      const encryptedKey = agent.wallet_encrypted_pk || userWalletMap[agent.user_id]
 
       if (!encryptedKey) {
-        console.error(`${agentTag} no wallet found for user ${agent.user_id}`)
+        console.error(`${agentTag} no wallet found for agent ${agent.name}`)
         return { id: agent.id, name: agent.name, think: 'skipped', chain: { success: false, message: 'no wallet' } }
       }
 
-      console.log(`${agentTag} running cycle for "${agent.name}" ($${agent.token_name})`)
+      const walletLabel = agent.wallet_public_key || '(legacy user wallet)'
+      console.log(`${agentTag} running cycle for "${agent.name}" ($${agent.token_name}) — wallet: ${walletLabel}`)
 
       const thinkResult = await runThinkCycle({
         id: agent.id,
