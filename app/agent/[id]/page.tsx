@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
+import Navbar from '../../components/Navbar'
 
 interface Agent {
   id: string; name: string; token_name: string; token_ca: string; persona: string
@@ -13,6 +14,7 @@ interface Stats { total_claimed: number; total_burned: number; total_lp: number;
 interface Log { id: string; title: string; body: string; mood: string; created_at: string }
 interface Memory { id: string; content: string; created_at: string }
 interface Input { id: string; content: string; created_at: string }
+interface Cycle { id: string; strategy: string; claimed_sol: number; burned: string; lp_sol: number; txs: string[]; created_at: string }
 
 const glass = {
   background: 'rgba(255,255,255,0.55)',
@@ -30,10 +32,17 @@ function timeAgo(date: string) {
   return `${Math.floor(h / 24)}d ago`
 }
 
+function formatBurned(n: number | string) {
+  const num = typeof n === 'string' ? Number(n) : n
+  if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T'
+  if (num >= 1e9)  return (num / 1e9).toFixed(2) + 'B'
+  if (num >= 1e6)  return (num / 1e6).toFixed(1) + 'M'
+  return num.toLocaleString()
+}
+
 function nextCycleIn(lastCycle: string | null) {
   if (!lastCycle) return null
-  const last = new Date(lastCycle).getTime()
-  const next = last + 15 * 60 * 1000
+  const next = new Date(lastCycle).getTime() + 15 * 60 * 1000
   const diff = next - Date.now()
   if (diff <= 0) return 'any moment'
   const mins = Math.floor(diff / 60000)
@@ -60,6 +69,7 @@ export default function AgentPage() {
   const [logs, setLogs] = useState<Log[]>([])
   const [memories, setMemories] = useState<Memory[]>([])
   const [inputs, setInputs] = useState<Input[]>([])
+  const [cycles, setCycles] = useState<Cycle[]>([])
   const [message, setMessage] = useState('')
   const [sendStatus, setSendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [sendError, setSendError] = useState('')
@@ -74,6 +84,7 @@ export default function AgentPage() {
       if (agentRes.ok) {
         const d = await agentRes.json()
         setAgent(d.agent); setStats(d.stats); setLogs(d.logs); setMemories(d.memories)
+        setCycles(d.cycles ?? [])
       }
       if (inputsRes.ok) setInputs(await inputsRes.json())
       setLoading(false)
@@ -118,20 +129,21 @@ export default function AgentPage() {
   )
 
   const daysAlive = Math.floor((Date.now() - new Date(agent.created_at).getTime()) / (1000 * 60 * 60 * 24))
-
   const lastCycleTime = stats?.last_cycle ?? agent.last_think ?? null
 
   const statItems = [
-    { label: 'sol claimed', value: stats?.total_claimed?.toFixed(4) ?? '0' },
-    { label: 'tokens burned', value: stats?.total_burned ? Number(stats.total_burned).toLocaleString() : '0' },
-    { label: 'sol to lp', value: stats?.total_lp?.toFixed(4) ?? '0' },
+    { label: 'sol claimed',   value: stats?.total_claimed?.toFixed(3) ?? '0' },
+    { label: 'tokens burned', value: stats?.total_burned ? formatBurned(stats.total_burned) : '0' },
+    { label: 'sol to lp',     value: stats?.total_lp?.toFixed(3) ?? '0' },
     { label: 'last strategy', value: stats?.last_strategy ?? '—' },
-    { label: 'days alive', value: String(daysAlive) },
-    { label: 'think cycles', value: logs.length ? String(logs.length) : '0' },
+    { label: 'days alive',    value: String(daysAlive) },
+    { label: 'think cycles',  value: String(logs.length) },
   ]
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+      <Navbar />
+
       <div className="px-6 sm:px-16 pt-24 pb-24 max-w-5xl mx-auto">
 
         {/* breadcrumb */}
@@ -222,9 +234,9 @@ export default function AgentPage() {
           </div>
         )}
 
-        {/* cycle status */}
+        {/* cycle countdown */}
         {agent.status === 'active' && (
-          <div className="rounded-xl px-4 py-3 mb-8 flex items-center justify-between" style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(20px)', border: '1px solid var(--border)' }}>
+          <div className="rounded-xl px-4 py-3 mb-8 flex items-center justify-between" style={glass}>
             <div className="flex items-center gap-3">
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--blue)', animation: 'blink 2s steps(1) infinite' }} />
               <p className="text-[11px] font-mono" style={{ color: 'var(--muted)' }}>
@@ -239,7 +251,7 @@ export default function AgentPage() {
           </div>
         )}
 
-        {/* stats — horizontal, no boxes */}
+        {/* stats */}
         <div style={{ height: '1px', background: 'var(--border)' }} />
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-6 py-8">
           {statItems.map((s) => (
@@ -254,16 +266,17 @@ export default function AgentPage() {
         {/* main: timeline + sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-12 items-start">
 
-          {/* left: log timeline */}
+          {/* left: diary + tx proof */}
           <div>
-            <p className="text-[10px] font-mono uppercase tracking-widest mb-6" style={{ color: 'var(--muted)' }}>diary</p>
 
+            {/* diary */}
+            <p className="text-[10px] font-mono uppercase tracking-widest mb-6" style={{ color: 'var(--muted)' }}>diary</p>
             {logs.length === 0 ? (
-              <div className="py-10 text-center">
+              <div className="py-10">
                 <p className="text-[13px] font-mono" style={{ color: 'var(--muted)' }}>no entries yet — first think cycle pending.</p>
               </div>
             ) : (
-              <div className="flex gap-5">
+              <div className="flex gap-5 mb-14">
                 <div className="w-[2px] shrink-0 rounded-full" style={{ background: 'var(--blue)', opacity: 0.2 }} />
                 <div className="flex flex-col gap-8 py-1 flex-1">
                   {logs.map((log) => (
@@ -283,6 +296,64 @@ export default function AgentPage() {
                 </div>
               </div>
             )}
+
+            {/* on-chain proof */}
+            {cycles.length > 0 && (
+              <>
+                <div style={{ height: '1px', background: 'var(--border)' }} />
+                <div className="pt-10">
+                  <p className="text-[10px] font-mono uppercase tracking-widest mb-6" style={{ color: 'var(--muted)' }}>on-chain proof</p>
+                  <div className="flex flex-col gap-4">
+                    {cycles.map((cycle) => (
+                      <div key={cycle.id} className="rounded-xl px-4 py-4" style={glass}>
+                        <div className="flex items-start justify-between gap-4 mb-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--blue)' }}>
+                              {cycle.strategy}
+                            </span>
+                            {Number(cycle.burned) > 0 && (
+                              <span className="text-[10px] font-mono" style={{ color: 'var(--muted)' }}>
+                                burned {formatBurned(cycle.burned)}
+                              </span>
+                            )}
+                            {cycle.claimed_sol > 0 && (
+                              <span className="text-[10px] font-mono" style={{ color: 'var(--muted)' }}>
+                                · {cycle.claimed_sol.toFixed(4)} SOL claimed
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[9px] font-mono shrink-0" style={{ color: 'var(--muted)', opacity: 0.5 }}>
+                            {timeAgo(cycle.created_at)}
+                          </span>
+                        </div>
+                        {cycle.txs && cycle.txs.length > 0 && (
+                          <div className="flex flex-col gap-1.5">
+                            {cycle.txs.map((tx, i) => (
+                              <a
+                                key={i}
+                                href={`https://solscan.io/tx/${tx}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 group"
+                              >
+                                <span className="text-[9px] font-mono" style={{ color: 'var(--muted)', opacity: 0.4 }}>
+                                  {i === 0 ? 'claim' : i === cycle.txs.length - 1 && Number(cycle.burned) > 0 ? 'burn' : 'buy'}
+                                </span>
+                                <span className="text-[10px] font-mono group-hover:underline truncate" style={{ color: 'var(--blue)' }}>
+                                  {tx.slice(0, 16)}...{tx.slice(-8)}
+                                </span>
+                                <span className="text-[9px]" style={{ color: 'var(--blue)', opacity: 0.5 }}>↗</span>
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
           </div>
 
           {/* right: sidebar */}

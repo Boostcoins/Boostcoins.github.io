@@ -402,11 +402,12 @@ export async function runOnChainCycle(
     }
   }
 
-  // Step 7: Save stats
+  // Step 7: Save stats + cycle proof
   await saveStats(agentId, balanceSol, buySol, burnedAmount, lpSol, strategy.name, tag)
+  await saveCycle(agentId, strategy.name, balanceSol, burnedAmount, lpSol, txs, tag)
 
   const msg = `cycle complete — ${strategy.name}${isMigrated ? ' (AMM)' : ' (bonding curve)'}${lpError ? ` [LP failed: ${lpError}]` : ''}`
-  console.log(`${tag} ${msg} | burned: ${burnedAmount} | lpSol: ${lpSol}`)
+  console.log(`${tag} ${msg} | burned: ${burnedAmount} | lpSol: ${lpSol} | txs: ${txs.length}`)
 
   return {
     success: true,
@@ -414,7 +415,31 @@ export async function runOnChainCycle(
     strategy: strategy.name,
     burned: burnedAmount,
     lpSol,
+    txs,
   }
+}
+
+// ─── Save cycle proof ─────────────────────────────────────────────────────────
+
+async function saveCycle(
+  agentId: string,
+  strategy: string,
+  claimedSol: number,
+  burned: string,
+  lpSol: number,
+  txs: string[],
+  tag: string
+) {
+  const { error } = await supabaseAdmin.from('cycles').insert({
+    agent_id:    agentId,
+    strategy,
+    claimed_sol: claimedSol,
+    burned,
+    lp_sol:      lpSol,
+    txs,
+  })
+  if (error) console.error(`${tag} failed to save cycle: ${error.message}`)
+  else console.log(`${tag} saved cycle proof — ${txs.length} tx(s): ${txs.join(', ')}`)
 }
 
 // ─── Save stats ───────────────────────────────────────────────────────────────

@@ -60,8 +60,13 @@ export async function GET(req: NextRequest) {
         return { id: agent.id, name: agent.name, think: 'skipped', chain: { success: false, message: 'no wallet' } }
       }
 
+      if (!agent.token_ca || agent.token_ca.trim().length < 32) {
+        console.error(`${agentTag} invalid or missing token_ca — skipping "${agent.name}"`)
+        return { id: agent.id, name: agent.name, think: 'skipped', chain: { success: false, message: 'invalid token_ca' } }
+      }
+
       const walletLabel = agent.wallet_public_key || '(legacy user wallet)'
-      console.log(`${agentTag} running cycle for "${agent.name}" ($${agent.token_name}) — wallet: ${walletLabel}`)
+      console.log(`${agentTag} running cycle for "${agent.name}" ($${agent.token_name} — ${agent.token_ca}) — wallet: ${walletLabel}`)
 
       const thinkResult = await runThinkCycle({
         id: agent.id,

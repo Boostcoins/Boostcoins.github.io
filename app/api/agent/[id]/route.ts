@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  const [agentRes, statsRes, logsRes, memoriesRes] = await Promise.all([
+  const [agentRes, statsRes, logsRes, memoriesRes, cyclesRes] = await Promise.all([
     supabaseAdmin
       .from('agents')
       .select('id, name, token_name, token_ca, persona, mood, status, last_think, created_at, image_url, twitter, telegram, website')
@@ -27,6 +27,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .eq('agent_id', id)
       .order('created_at', { ascending: false })
       .limit(30),
+    supabaseAdmin
+      .from('cycles')
+      .select('id, strategy, claimed_sol, burned, lp_sol, txs, created_at')
+      .eq('agent_id', id)
+      .order('created_at', { ascending: false })
+      .limit(10),
   ])
 
   if (!agentRes.data) {
@@ -38,5 +44,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     stats: statsRes.data,
     logs: logsRes.data ?? [],
     memories: memoriesRes.data ?? [],
+    cycles: cyclesRes.data ?? [],
   })
 }
