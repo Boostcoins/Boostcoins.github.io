@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import Navbar from '../components/Navbar'
 
 const glass = {
   background: 'rgba(255,255,255,0.55)',
@@ -116,8 +115,6 @@ export default function DocsPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <Navbar />
-
       <div className="px-6 sm:px-16 pt-24 pb-24">
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-16 lg:gap-20 items-start">
 

@@ -22,7 +22,7 @@ export default function Login() {
       })
       const data = await res.json()
       if (!res.ok) setError(data.error || 'invalid credentials')
-      else router.push('/dashboard')
+      else { router.push('/dashboard'); router.refresh() }
     } catch { setError('network error') }
     finally { setLoading(false) }
   }

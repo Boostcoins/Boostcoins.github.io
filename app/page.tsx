@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import Navbar from './components/Navbar'
 import PlatformStats from './components/PlatformStats'
 import LiveAgentFeed from './components/LiveAgentFeed'
 
@@ -42,7 +41,6 @@ const LOG_LINES = [
 export default function Home() {
   return (
     <main style={{ background: 'var(--bg)' }}>
-      <Navbar />
 
       {/* ── HERO ──────────────────────────────────────────── */}
       <section className="min-h-screen flex flex-col justify-end px-6 sm:px-16 pb-20 pt-28">

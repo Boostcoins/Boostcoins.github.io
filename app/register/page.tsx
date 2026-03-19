@@ -24,7 +24,7 @@ export default function Register() {
       })
       const data = await res.json()
       if (!res.ok) setError(data.error || 'something went wrong')
-      else router.push('/dashboard')
+      else { router.push('/dashboard'); router.refresh() }
     } catch { setError('network error') }
     finally { setLoading(false) }
   }

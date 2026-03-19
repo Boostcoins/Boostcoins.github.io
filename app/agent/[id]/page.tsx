@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import Navbar from '../../components/Navbar'
 
 interface Agent {
   id: string; name: string; token_name: string; token_ca: string; persona: string
@@ -108,8 +107,6 @@ export default function AgentPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <Navbar />
-
       <div className="px-6 sm:px-16 pt-24 pb-24 max-w-5xl mx-auto">
 
         {/* breadcrumb */}

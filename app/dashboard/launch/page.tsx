@@ -3,7 +3,6 @@
 import { useState, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import Navbar from '../../components/Navbar'
 
 const glass = {
   background: 'rgba(255,255,255,0.55)',
@@ -133,8 +132,6 @@ export default function LaunchAndDeploy() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <Navbar />
-
       <div className="px-6 sm:px-16 pt-24 pb-24 max-w-5xl mx-auto">
 
         {/* top bar */}

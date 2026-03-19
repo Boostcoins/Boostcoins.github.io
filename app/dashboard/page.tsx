@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { getSession } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getWalletBalance } from '@/lib/wallet'
-import Navbar from '../components/Navbar'
+import CopyAddress from '../components/CopyAddress'
 
 function daysAlive(created: string) {
   return Math.floor((Date.now() - new Date(created).getTime()) / (1000 * 60 * 60 * 24))
@@ -39,8 +39,6 @@ export default async function Dashboard() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <Navbar username={user?.username} />
-
       <div className="px-6 sm:px-16 pt-24 pb-24 max-w-5xl mx-auto">
 
         {/* top bar */}
@@ -71,14 +69,9 @@ export default async function Dashboard() {
             <div className="hidden sm:block w-px h-8" style={{ background: 'var(--border)' }} />
             <div className="hidden sm:block">
               <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>address</p>
-              <p className="text-[11px] font-mono" style={{ color: 'var(--muted)' }}>
-                {wallet ? `${wallet.public_key.slice(0, 16)}...${wallet.public_key.slice(-6)}` : '—'}
-              </p>
+              {wallet ? <CopyAddress address={wallet.public_key} /> : <p className="text-[11px] font-mono" style={{ color: 'var(--muted)' }}>—</p>}
             </div>
           </div>
-          <p className="text-[10px] font-mono" style={{ color: 'var(--blue)' }}>
-            send SOL to this address →
-          </p>
         </div>
 
         {/* agents header */}

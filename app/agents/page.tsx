@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import Navbar from '../components/Navbar'
 import { supabaseAdmin } from '@/lib/supabase'
 
 export const revalidate = 60
@@ -20,8 +19,6 @@ export default async function Agents() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <Navbar />
-
       <div className="max-w-5xl mx-auto px-6 sm:px-10 pt-24 pb-24">
 
         <div className="flex items-end justify-between mb-12">
