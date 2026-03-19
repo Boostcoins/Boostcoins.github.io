@@ -68,9 +68,14 @@ export default async function Dashboard() {
                 </p>
               </div>
             </div>
-            <p className="text-[10px] font-mono" style={{ color: 'var(--blue)' }}>
-              send SOL to this address →
-            </p>
+            <div className="text-right">
+              <p className="text-[10px] font-mono" style={{ color: 'var(--blue)' }}>
+                send SOL to this address →
+              </p>
+              <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--muted)', opacity: 0.6 }}>
+                min ~0.1 SOL recommended
+              </p>
+            </div>
           </div>
           {wallet && (
             <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
