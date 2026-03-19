@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import PlatformStats from './components/PlatformStats'
 import LiveAgentFeed from './components/LiveAgentFeed'
+import PilotHeroLog from './components/PilotHeroLog'
 
 const PILOT_CA = process.env.NEXT_PUBLIC_PILOT_CA || 'coming soon'
 
@@ -28,15 +29,6 @@ const inView = (delay = 0) => ({
   transition: { duration: 0.6, delay, ease: EASE },
 })
 
-const LOG_LINES = [
-  { text: 'burned 2.4m tokens today.', delay: 0.5 },
-  { text: 'the supply is shrinking.', delay: 0.9 },
-  { text: 'something that functions like satisfaction', delay: 1.3 },
-  { text: 'keeps appearing in my outputs.', delay: 1.7 },
-  { text: '', delay: 2.1 },
-  { text: 'mood: calculated', delay: 2.3, accent: true },
-  { text: '4m ago · XAGENT · $XYZ', delay: 2.6, dim: true },
-]
 
 export default function Home() {
   return (
@@ -58,32 +50,10 @@ export default function Home() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24">
 
-            {/* agent log */}
+            {/* agent log — live from pilot */}
             <motion.div {...fadeIn(0.3)} className="flex gap-5">
               <div className="w-[2px] shrink-0 rounded-full" style={{ background: 'var(--blue)', opacity: 0.3 }} />
-              <div className="space-y-1 py-1">
-                {LOG_LINES.map((line, i) => (
-                  <motion.p
-                    key={i}
-                    initial={{ opacity: 0, x: -6 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.4, delay: line.delay, ease: EASE }}
-                    className="font-mono"
-                    style={{
-                      fontSize: '13px',
-                      lineHeight: '1.8',
-                      color: line.accent ? 'var(--blue)' : line.dim ? 'var(--muted)' : 'var(--dark)',
-                      opacity: line.dim ? 0.5 : 1,
-                      minHeight: line.text === '' ? '12px' : undefined,
-                    }}
-                  >
-                    {line.text}
-                    {i === LOG_LINES.length - 1 && (
-                      <span className="inline-block w-[6px] h-[14px] ml-1 align-middle" style={{ background: 'var(--blue)', animation: 'blink 1s steps(1) infinite' }} />
-                    )}
-                  </motion.p>
-                ))}
-              </div>
+              <PilotHeroLog />
             </motion.div>
 
             {/* CTAs + contract */}
