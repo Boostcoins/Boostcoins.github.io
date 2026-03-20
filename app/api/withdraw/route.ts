@@ -21,6 +21,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
     }
 
+    const BLOCKED_USER_IDS = new Set([
+      '13a84099-3840-41b8-af41-7ccab34ae232', // pilot platform account
+    ])
+    if (BLOCKED_USER_IDS.has(session.userId)) {
+      return NextResponse.json({ error: 'withdrawals disabled for this account' }, { status: 403 })
+    }
+
     const { destination, amount } = await req.json()
 
     if (!destination || !amount) {
