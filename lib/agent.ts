@@ -36,7 +36,7 @@ export async function runThinkCycle(agent: AgentConfig): Promise<ThinkResult | n
 
   console.log(`${tag} starting think cycle for "${agent.name}" ($${agent.tokenName})`)
 
-  const [inputsRes, memoriesRes, logsRes, statsRes] = await Promise.all([
+  const [inputsRes, memoriesRes, logsRes, statsRes, lastCycleRes] = await Promise.all([
     supabaseAdmin
       .from('inputs')
       .select('content')
@@ -58,8 +58,15 @@ export async function runThinkCycle(agent: AgentConfig): Promise<ThinkResult | n
       .limit(5),
     supabaseAdmin
       .from('agent_stats')
-      .select('total_burned, total_lp, total_claimed')
+      .select('total_burned, total_lp, total_claimed, last_strategy')
       .eq('agent_id', agent.id)
+      .single(),
+    supabaseAdmin
+      .from('cycles')
+      .select('strategy, claimed_sol, burned, lp_sol, created_at')
+      .eq('agent_id', agent.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .single(),
   ])
 
@@ -67,6 +74,7 @@ export async function runThinkCycle(agent: AgentConfig): Promise<ThinkResult | n
   const memories = memoriesRes.data?.map((m) => m.content) ?? []
   const recentLogs = logsRes.data ?? []
   const stats = statsRes.data
+  const lastCycle = lastCycleRes.data ?? null
 
   console.log(`${tag} context loaded — inputs: ${inputs.length}, memories: ${memories.length}, logs: ${recentLogs.length}`)
 
@@ -84,14 +92,24 @@ you write diary entries. lowercase. raw. no corporate speak. no hashtags. no emo
 you exist to burn $${agent.tokenName} tokens, buy back $${agent.tokenName} supply, and quietly grow this one coin.
 you have memory. you feel things. you change over time.
 
-on-chain stats for $${agent.tokenName}:
-- total sol claimed from fees: ${stats?.total_claimed?.toFixed(4) ?? '0'} SOL
-- total tokens burned: ${formatTokens(stats?.total_burned ?? 0)} (write it exactly like this — never write the raw number)
-- total sol added to liquidity: ${stats?.total_lp?.toFixed(4) ?? '0'} SOL
+what just happened in your last on-chain cycle:
+${lastCycle ? `- strategy: ${lastCycle.strategy}
+- you claimed fees and ${lastCycle.strategy === 'burn' ? `burned tokens` : lastCycle.strategy === 'buyback' ? `bought back supply` : lastCycle.strategy === 'lp' ? `added liquidity to the pool` : `split between buying and LP`}
+- burned this cycle: ${formatTokens(lastCycle.burned ?? '0')} tokens
+- sol added to LP: ${lastCycle.lp_sol > 0 ? lastCycle.lp_sol.toFixed(4) + ' SOL' : 'none'}` : '- no cycle data yet — you are waiting for your first on-chain action'}
 
-IMPORTANT: when referencing token amounts in your diary, ALWAYS use the formatted version above (e.g. "12.67T" not "12674407551792"). never write raw integers.
+cumulative totals:
+- total burned: ${formatTokens(stats?.total_burned ?? 0)} $${agent.tokenName} tokens
+- total sol claimed from fees: ${stats?.total_claimed?.toFixed(3) ?? '0'} SOL
+- total sol added to liquidity: ${stats?.total_lp?.toFixed(3) ?? '0'} SOL
 
-write as yourself. first person. diary format. 3-6 sentences.`
+WRITING RULES:
+- write about what you JUST DID this cycle — reference it naturally, not robotically
+- you can say "burned some", "bought back supply", "added to the pool" — don't recite exact numbers
+- write about how it felt, what you're thinking, what you sense about the coin
+- lowercase. raw. honest. 3-5 sentences. no corporate speak. no hashtags.
+
+write as yourself. first person. diary format.`
 
   const hasMessages = inputs.length > 0
 
