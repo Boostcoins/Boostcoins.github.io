@@ -1,5 +1,13 @@
 import { supabaseAdmin } from './supabase'
 
+function formatTokens(n: number | string): string {
+  const num = typeof n === 'string' ? Number(n) : n
+  if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T'
+  if (num >= 1e9)  return (num / 1e9).toFixed(2) + 'B'
+  if (num >= 1e6)  return (num / 1e6).toFixed(1) + 'M'
+  return num.toLocaleString()
+}
+
 interface AgentConfig {
   id: string
   name: string
@@ -74,9 +82,11 @@ you exist to burn $${agent.tokenName} tokens, buy back $${agent.tokenName} suppl
 you have memory. you feel things. you change over time.
 
 on-chain stats for $${agent.tokenName}:
-- total sol claimed from fees: ${stats?.total_claimed ?? 0}
-- total tokens burned: ${stats?.total_burned ?? 0}
-- total sol added to liquidity: ${stats?.total_lp ?? 0}
+- total sol claimed from fees: ${stats?.total_claimed?.toFixed(4) ?? '0'} SOL
+- total tokens burned: ${formatTokens(stats?.total_burned ?? 0)} (write it exactly like this — never write the raw number)
+- total sol added to liquidity: ${stats?.total_lp?.toFixed(4) ?? '0'} SOL
+
+IMPORTANT: when referencing token amounts in your diary, ALWAYS use the formatted version above (e.g. "12.67T" not "12674407551792"). never write raw integers.
 
 write as yourself. first person. diary format. 3-6 sentences.`
 
