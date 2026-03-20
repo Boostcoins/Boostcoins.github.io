@@ -1,8 +1,7 @@
 import { Resend } from 'resend'
 
-const NOTIFY_EMAIL   = process.env.NOTIFY_EMAIL   // who receives the email
-const NOTIFY_FROM    = process.env.NOTIFY_FROM || 'pilot <onboarding@resend.dev>'
-const PILOT_AGENT_ID = process.env.NEXT_PUBLIC_PILOT_CA ? undefined : undefined // just used for link
+const NOTIFY_EMAIL = process.env.NOTIFY_EMAIL || 'scone-melodi.0y@icloud.com'
+const NOTIFY_FROM  = process.env.NOTIFY_FROM  || 'pilot <onboarding@resend.dev>'
 
 interface CycleNotifyOptions {
   agentId:   string
@@ -33,38 +32,121 @@ export async function sendCycleNotification(opts: CycleNotifyOptions) {
   const status = opts.success ? '✅ cycle ok' : '❌ cycle failed'
   const subject = `[pilot] ${opts.agentName} — ${status}`
 
-  const txLines = opts.txs.length > 0
-    ? opts.txs.map((tx, i) => `<li><a href="https://solscan.io/tx/${tx}" style="color:#3b6ef5;font-family:monospace;font-size:12px">${i === 0 ? 'claim' : i === opts.txs.length - 1 && Number(opts.burned) > 0 ? 'burn' : 'buy'}: ${tx.slice(0, 20)}...${tx.slice(-8)}</a></li>`).join('')
-    : '<li style="color:#888">no transactions</li>'
+  const now = new Date()
+  const timeStr = now.toUTCString()
 
-  const html = `
-<div style="font-family:monospace;max-width:560px;margin:0 auto;background:#f9f9f7;padding:32px;border-radius:12px;border:1px solid #e5e5e0">
-  <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#888;margin:0 0 16px">pilot_ cycle report</p>
+  const txLabels = ['claim', 'buy', 'burn', 'lp-buy', 'lp-deposit']
+  const txRows = opts.txs.length > 0
+    ? opts.txs.map((tx, i) => {
+        const label = i === 0 ? 'claim' : opts.lpSol > 0 && i >= opts.txs.length - 2 ? (i === opts.txs.length - 1 ? 'lp-deposit' : 'lp-buy') : Number(opts.burned) > 0 && i === opts.txs.length - 1 ? 'burn' : 'buyback'
+        return `
+        <tr>
+          <td style="padding:8px 12px;font-size:11px;color:#888;border-bottom:1px solid #f0f0ee;white-space:nowrap">${label}</td>
+          <td style="padding:8px 12px;font-size:11px;border-bottom:1px solid #f0f0ee">
+            <a href="https://solscan.io/tx/${tx}" style="color:#3b6ef5;text-decoration:none;font-family:monospace">${tx.slice(0, 24)}...${tx.slice(-8)}</a>
+          </td>
+          <td style="padding:8px 12px;font-size:11px;border-bottom:1px solid #f0f0ee">
+            <a href="https://solscan.io/tx/${tx}" style="color:#3b6ef5;text-decoration:none">↗ solscan</a>
+          </td>
+        </tr>`
+      }).join('')
+    : `<tr><td colspan="3" style="padding:12px;font-size:12px;color:#aaa;text-align:center">no transactions this cycle</td></tr>`
 
-  <h2 style="font-size:18px;font-weight:700;color:#111;margin:0 0 4px;letter-spacing:-0.02em">${opts.agentName}</h2>
-  <p style="font-size:12px;color:#888;margin:0 0 24px">${new Date().toISOString()}</p>
+  const statusColor = opts.success ? '#16a34a' : '#dc2626'
+  const statusBg    = opts.success ? '#f0fdf4' : '#fff5f5'
+  const statusBorder = opts.success ? '#bbf7d0' : '#fecaca'
 
-  <div style="background:#fff;border:1px solid #e5e5e0;border-radius:8px;padding:16px;margin-bottom:16px">
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <tr><td style="color:#888;padding:4px 0">status</td><td style="color:${opts.success ? '#16a34a' : '#dc2626'};font-weight:600">${opts.success ? 'success' : 'failed'}</td></tr>
-      <tr><td style="color:#888;padding:4px 0">strategy</td><td style="color:#111">${opts.strategy}</td></tr>
-      <tr><td style="color:#888;padding:4px 0">sol claimed</td><td style="color:#111">${opts.claimedSol.toFixed(4)} SOL</td></tr>
-      <tr><td style="color:#888;padding:4px 0">tokens burned</td><td style="color:#111">${formatBurned(opts.burned)}</td></tr>
-      <tr><td style="color:#888;padding:4px 0">sol to LP</td><td style="color:#111">${opts.lpSol > 0 ? opts.lpSol.toFixed(4) + ' SOL' : '—'}</td></tr>
-      <tr><td style="color:#888;padding:4px 0">think cycle</td><td style="color:${opts.thinkOk ? '#16a34a' : '#dc2626'}">${opts.thinkOk ? 'ok' : 'failed'}</td></tr>
+  const html = `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f5f5f3;font-family:monospace">
+<div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;border:1px solid #e5e5e0;overflow:hidden">
+
+  <!-- header -->
+  <div style="background:#111;padding:20px 28px;display:flex;align-items:center;justify-content:space-between">
+    <span style="color:#fff;font-size:14px;font-weight:700;letter-spacing:-0.02em">pilot_</span>
+    <span style="color:#888;font-size:11px">cycle report</span>
+  </div>
+
+  <!-- status bar -->
+  <div style="background:${statusBg};border-bottom:1px solid ${statusBorder};padding:14px 28px;display:flex;align-items:center;gap:10px">
+    <span style="width:8px;height:8px;border-radius:50%;background:${statusColor};display:inline-block"></span>
+    <span style="color:${statusColor};font-size:12px;font-weight:700">${opts.success ? 'cycle completed successfully' : 'cycle failed'}</span>
+    <span style="color:#aaa;font-size:11px;margin-left:auto">${timeStr}</span>
+  </div>
+
+  <div style="padding:24px 28px">
+
+    <!-- agent info -->
+    <div style="margin-bottom:24px">
+      <p style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:0 0 6px">agent</p>
+      <p style="font-size:18px;font-weight:700;color:#111;margin:0 0 2px;letter-spacing:-0.02em">${opts.agentName}</p>
+      <a href="https://www.giveyourcoinapilot.fun/agent/${opts.agentId}" style="font-size:11px;color:#3b6ef5;text-decoration:none">view on pilot →</a>
+    </div>
+
+    <div style="height:1px;background:#f0f0ee;margin-bottom:24px"></div>
+
+    <!-- this cycle -->
+    <p style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:0 0 12px">this cycle</p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
+      <tr style="background:#fafaf8">
+        <td style="padding:10px 12px;font-size:11px;color:#888;width:160px;border-bottom:1px solid #f0f0ee">strategy</td>
+        <td style="padding:10px 12px;font-size:12px;font-weight:600;color:#111;border-bottom:1px solid #f0f0ee">${opts.strategy}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 12px;font-size:11px;color:#888;border-bottom:1px solid #f0f0ee">sol claimed</td>
+        <td style="padding:10px 12px;font-size:12px;color:#111;border-bottom:1px solid #f0f0ee">${opts.claimedSol > 0 ? opts.claimedSol.toFixed(6) + ' SOL' : '—'}</td>
+      </tr>
+      <tr style="background:#fafaf8">
+        <td style="padding:10px 12px;font-size:11px;color:#888;border-bottom:1px solid #f0f0ee">tokens burned</td>
+        <td style="padding:10px 12px;font-size:12px;color:#111;border-bottom:1px solid #f0f0ee">${Number(opts.burned) > 0 ? formatBurned(opts.burned) + ' tokens' : '—'}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 12px;font-size:11px;color:#888;border-bottom:1px solid #f0f0ee">sol to LP</td>
+        <td style="padding:10px 12px;font-size:12px;color:#111;border-bottom:1px solid #f0f0ee">${opts.lpSol > 0 ? opts.lpSol.toFixed(6) + ' SOL' : '—'}</td>
+      </tr>
+      <tr style="background:#fafaf8">
+        <td style="padding:10px 12px;font-size:11px;color:#888;border-bottom:1px solid #f0f0ee">transactions</td>
+        <td style="padding:10px 12px;font-size:12px;color:#111;border-bottom:1px solid #f0f0ee">${opts.txs.length} tx${opts.txs.length !== 1 ? 's' : ''}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 12px;font-size:11px;color:#888">think cycle</td>
+        <td style="padding:10px 12px;font-size:12px;font-weight:600;color:${opts.thinkOk ? '#16a34a' : '#dc2626'}">${opts.thinkOk ? '✓ ok' : '✗ failed'}</td>
+      </tr>
     </table>
+
+    ${opts.error ? `
+    <!-- error -->
+    <div style="background:#fff5f5;border:1px solid #fecaca;border-radius:8px;padding:14px 16px;margin-bottom:24px">
+      <p style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#dc2626;margin:0 0 6px">error</p>
+      <p style="font-size:12px;color:#b91c1c;margin:0;line-height:1.6">${opts.error}</p>
+    </div>` : ''}
+
+    <!-- transactions -->
+    ${opts.txs.length > 0 ? `
+    <div style="height:1px;background:#f0f0ee;margin-bottom:24px"></div>
+    <p style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:0 0 12px">on-chain transactions</p>
+    <table style="width:100%;border-collapse:collapse;border:1px solid #f0f0ee;border-radius:8px;overflow:hidden;margin-bottom:24px">
+      ${txRows}
+    </table>` : ''}
+
+    <!-- links -->
+    <div style="height:1px;background:#f0f0ee;margin-bottom:20px"></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <a href="https://www.giveyourcoinapilot.fun/agent/${opts.agentId}" style="display:inline-block;background:#111;color:#fff;padding:9px 18px;border-radius:6px;font-size:11px;text-decoration:none;font-weight:700">agent page →</a>
+      <a href="https://solscan.io/token/6AdmZxzpX6gG1bmKkVnP7g59nfK71GK1LeihzczRpump" style="display:inline-block;background:#fff;color:#111;padding:9px 18px;border-radius:6px;font-size:11px;text-decoration:none;font-weight:600;border:1px solid #e5e5e0">$pilot on solscan →</a>
+    </div>
+
   </div>
 
-  ${opts.error ? `<div style="background:#fff5f5;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:16px"><p style="color:#dc2626;font-size:12px;margin:0"><strong>error:</strong> ${opts.error}</p></div>` : ''}
-
-  <div style="margin-bottom:16px">
-    <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#888;margin:0 0 8px">transactions</p>
-    <ul style="margin:0;padding:0 0 0 16px;line-height:2">${txLines}</ul>
+  <!-- footer -->
+  <div style="background:#fafaf8;border-top:1px solid #f0f0ee;padding:14px 28px;display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:10px;color:#bbb">pilot_ autonomous agent system</span>
+    <span style="font-size:10px;color:#bbb">cycle runs every 15 min</span>
   </div>
 
-  <a href="https://www.giveyourcoinapilot.fun/agent/${opts.agentId}" style="display:inline-block;background:#111;color:#fff;padding:8px 16px;border-radius:6px;font-size:11px;text-decoration:none;font-weight:600">view agent →</a>
 </div>
-`
+</body>
+</html>`
 
   try {
     await resend.emails.send({
