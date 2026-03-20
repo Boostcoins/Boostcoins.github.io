@@ -151,19 +151,14 @@ export async function POST(req: NextRequest) {
     let ixArray: import('@solana/web3.js').TransactionInstruction[]
 
     if (initialBuySol > 0) {
-      // For a brand-new token the bonding curve doesn't exist on-chain yet,
-      // so we can't call fetchBuyState. Calculate using pump.fun's known initial
-      // virtual reserves (constant for every new token).
-      // pump.fun charges a 1% trading fee — only solAmount*0.99 enters the curve.
-      // We also apply a small 1% safety buffer to avoid slippage failures.
-      const INIT_VIRTUAL_TOKENS = new BN('1073000191000000') // 1,073,000,191 tokens
-      const INIT_VIRTUAL_SOL   = new BN('30000000000')       // 30 SOL in lamports
-      const effectiveSol = solAmount.muln(98).divn(100)      // ~2% off for fee + buffer
+      const INIT_VIRTUAL_TOKENS = new BN('1073000191000000')
+      const INIT_VIRTUAL_SOL   = new BN('30000000000')
+      const effectiveSol = solAmount.muln(98).divn(100)
       const tokenAmount = INIT_VIRTUAL_TOKENS.mul(effectiveSol).div(INIT_VIRTUAL_SOL.add(effectiveSol))
 
       console.log(`${tag} initial buy token estimate: ${tokenAmount.toString()} (for ${initialBuySol} SOL, effective: ${effectiveSol.toString()} lamports)`)
 
-      const result = await PUMP_SDK.createAndBuyInstructions({
+      const result = await PUMP_SDK.createV2AndBuyInstructions({
         global,
         mint: mint.publicKey,
         name,
@@ -173,18 +168,20 @@ export async function POST(req: NextRequest) {
         user: keypair.publicKey,
         solAmount,
         amount: tokenAmount,
+        mayhemMode: false,
       })
       ixArray = result as unknown as import('@solana/web3.js').TransactionInstruction[]
     } else {
-      const result = await PUMP_SDK.createInstruction({
+      const result = await PUMP_SDK.createV2Instruction({
         mint: mint.publicKey,
         name,
         symbol,
         uri: metadataUri,
         creator: agentKeypair.publicKey,
         user: keypair.publicKey,
+        mayhemMode: false,
       })
-      ixArray = result as unknown as import('@solana/web3.js').TransactionInstruction[]
+      ixArray = [result] as unknown as import('@solana/web3.js').TransactionInstruction[]
     }
 
     // Append V2 PDA (required after program upgrade)
