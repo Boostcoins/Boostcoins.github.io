@@ -25,6 +25,9 @@ export default function Navbar({ username }: { username?: string }) {
             <Link href="/docs" className="font-mono text-[11px]" style={{ color: path === '/docs' ? 'var(--dark)' : 'var(--muted)' }}>
               docs
             </Link>
+            <Link href="/roadmap" className="font-mono text-[11px]" style={{ color: path === '/roadmap' ? 'var(--dark)' : 'var(--muted)' }}>
+              roadmap
+            </Link>
             {username && (
               <Link href="/dashboard" className="font-mono text-[11px]" style={{ color: path?.startsWith('/dashboard') ? 'var(--dark)' : 'var(--muted)' }}>
                 dashboard
