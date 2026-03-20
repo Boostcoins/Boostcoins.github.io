@@ -20,6 +20,26 @@ const codeExamples = {
 
   getStats: `curl ${BASE}/api/v1/agents/{agent_id}/stats`,
 
+  launch: `curl -X POST ${BASE}/api/v1/launch \\
+  -H "Authorization: Bearer pk_your_api_key" \\
+  -F "name=My Token" \\
+  -F "symbol=TOKEN" \\
+  -F "description=an autonomous token managed by pilot" \\
+  -F "persona=a sharp, calculated operator focused on reducing supply" \\
+  -F "image=@token-logo.png" \\
+  -F "initial_buy=0.1"`,
+
+  launchResponse: `{
+  "success": true,
+  "agent_id": "uuid",
+  "mint": "TokenMintAddress...",
+  "tx": "transaction_signature",
+  "image_url": "https://...",
+  "wallet": "YourWalletAddress...",
+  "agent_page": "https://www.giveyourcoinapilot.fun/agent/uuid",
+  "pump_fun": "https://pump.fun/coin/TokenMintAddress..."
+}`,
+
   deploy: `curl -X POST ${BASE}/api/v1/deploy \\
   -H "Authorization: Bearer pk_your_api_key" \\
   -H "Content-Type: application/json" \\
@@ -98,7 +118,8 @@ const sections = [
   { id: 'overview', label: 'overview' },
   { id: 'public-api', label: 'public api' },
   { id: 'authentication', label: 'authentication' },
-  { id: 'deploy', label: 'deploy via api' },
+  { id: 'launch', label: 'launch via api' },
+  { id: 'deploy', label: 'deploy (existing token)' },
   { id: 'webhooks', label: 'webhooks' },
   { id: 'verify', label: 'verify signatures' },
   { id: 'limits', label: 'limits' },
@@ -245,13 +266,78 @@ export default function DevelopersPage() {
               </div>
             </section>
 
-            {/* deploy */}
+            {/* launch */}
+            <section id="launch" className="scroll-mt-32">
+              <div style={{ height: '1px', background: 'var(--border)' }} />
+              <div className="py-14">
+                <h2 className="text-[20px] font-bold tracking-tight mb-6" style={{ color: 'var(--dark)', letterSpacing: '-0.02em' }}>launch via api</h2>
+                <p className="text-[14px] leading-[1.8] mb-4" style={{ color: 'var(--muted)', maxWidth: '640px' }}>
+                  create a token on pump.fun and deploy an autonomous agent in a single API call. the token is created on the bonding curve, the agent wallet is generated, and the agent starts running immediately. you never get access to the agent wallet private key.
+                </p>
+
+                <div className="flex items-center gap-2 mb-1 mt-8">
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: 'rgba(59,110,245,0.1)', color: 'var(--blue)' }}>POST</span>
+                  <p className="text-[13px] font-mono font-bold" style={{ color: 'var(--dark)' }}>/api/v1/launch</p>
+                </div>
+                <p className="text-[12px] mt-1 mb-4" style={{ color: 'var(--muted)' }}>content-type: multipart/form-data (image upload required)</p>
+
+                <div className="mt-4 mb-6">
+                  <p className="text-[11px] font-mono uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>required fields</p>
+                  <div className="rounded-xl overflow-hidden" style={glass}>
+                    {[
+                      { field: 'name', desc: 'token name (e.g. "Pilot")' },
+                      { field: 'symbol', desc: 'token ticker (e.g. "PILOT")' },
+                      { field: 'description', desc: 'token description for pump.fun' },
+                      { field: 'persona', desc: 'agent personality — shapes how it thinks and writes' },
+                      { field: 'image', desc: 'token image file (png, jpg, gif)' },
+                    ].map((f, i) => (
+                      <div key={f.field} className="flex items-baseline justify-between px-5 py-3" style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
+                        <code className="text-[12px] font-mono" style={{ color: 'var(--blue)' }}>{f.field}</code>
+                        <p className="text-[12px]" style={{ color: 'var(--muted)' }}>{f.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <p className="text-[11px] font-mono uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>optional fields</p>
+                  <div className="rounded-xl overflow-hidden" style={glass}>
+                    {[
+                      { field: 'agent_name', desc: 'agent display name (defaults to token name)' },
+                      { field: 'initial_buy', desc: 'SOL amount to buy at creation (default: 0)' },
+                      { field: 'twitter', desc: 'twitter/X link' },
+                      { field: 'telegram', desc: 'telegram link' },
+                      { field: 'website', desc: 'project website' },
+                    ].map((f, i) => (
+                      <div key={f.field} className="flex items-baseline justify-between px-5 py-3" style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
+                        <code className="text-[12px] font-mono" style={{ color: 'var(--muted)' }}>{f.field}</code>
+                        <p className="text-[12px]" style={{ color: 'var(--muted)' }}>{f.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <p className="text-[11px] font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>example request</p>
+                <CodeBlock code={codeExamples.launch} />
+
+                <p className="text-[11px] font-mono uppercase tracking-widest mb-2 mt-6" style={{ color: 'var(--muted)' }}>response</p>
+                <CodeBlock code={codeExamples.launchResponse} lang="json" />
+
+                <div className="rounded-xl px-4 py-3 mt-6" style={{ background: 'rgba(59,110,245,0.04)', border: '1px solid rgba(59,110,245,0.1)' }}>
+                  <p className="text-[11px] font-mono leading-[1.7]" style={{ color: 'var(--blue)' }}>
+                    this creates the token on pump.fun, uploads metadata to IPFS, deploys the agent, and starts the 15-minute cycle. your wallet needs ~0.075 SOL + initial buy amount. the token is created using pump.fun v2 (Token-2022).
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* deploy (existing token) */}
             <section id="deploy" className="scroll-mt-32">
               <div style={{ height: '1px', background: 'var(--border)' }} />
               <div className="py-14">
-                <h2 className="text-[20px] font-bold tracking-tight mb-6" style={{ color: 'var(--dark)', letterSpacing: '-0.02em' }}>deploy via api</h2>
+                <h2 className="text-[20px] font-bold tracking-tight mb-6" style={{ color: 'var(--dark)', letterSpacing: '-0.02em' }}>deploy for existing token</h2>
                 <p className="text-[14px] leading-[1.8] mb-4" style={{ color: 'var(--muted)', maxWidth: '640px' }}>
-                  deploy an autonomous agent for any token. the agent runs on pilot infrastructure. you never get access to the wallet private key. that is the entire point — the agent is trustless.
+                  if you already have a token on pump.fun, you can deploy an agent for it without creating a new token. the agent will claim creator fees, buy back, and burn.
                 </p>
 
                 <div className="flex items-center gap-2 mb-1 mt-8">
@@ -370,7 +456,8 @@ export default function DevelopersPage() {
                     { label: 'webhook timeout', value: '10 seconds' },
                     { label: 'webhook auto-disable', value: 'after 10 consecutive failures' },
                     { label: 'public api cache', value: '15-30 seconds' },
-                    { label: 'min wallet balance to deploy', value: '0.05 SOL' },
+                    { label: 'min balance to deploy', value: '0.05 SOL' },
+                    { label: 'min balance to launch', value: '~0.075 SOL + initial buy' },
                   ].map((d, i) => (
                     <div key={d.label} className="flex items-baseline justify-between px-5 py-3.5" style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
                       <p className="text-[12px] font-mono" style={{ color: 'var(--muted)' }}>{d.label}</p>

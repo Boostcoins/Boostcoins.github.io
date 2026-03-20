@@ -26,6 +26,12 @@ create table if not exists agents (
   status text default 'active' check (status in ('active', 'paused', 'stopped')),
   mood text,
   last_think timestamptz,
+  image_url text,
+  twitter text,
+  telegram text,
+  website text,
+  wallet_public_key text,
+  wallet_encrypted_pk text,
   created_at timestamptz default now()
 );
 
