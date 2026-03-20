@@ -1,10 +1,12 @@
 import { supabaseAdmin } from './supabase'
 
 function formatTokens(n: number | string): string {
-  const num = typeof n === 'string' ? Number(n) : n
-  if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T'
+  // Raw value is stored with 6 decimal places (SPL token standard)
+  const raw = typeof n === 'string' ? Number(n) : n
+  const num = raw / 1_000_000
   if (num >= 1e9)  return (num / 1e9).toFixed(2) + 'B'
-  if (num >= 1e6)  return (num / 1e6).toFixed(1) + 'M'
+  if (num >= 1e6)  return (num / 1e6).toFixed(2) + 'M'
+  if (num >= 1e3)  return (num / 1e3).toFixed(1) + 'K'
   return num.toLocaleString()
 }
 

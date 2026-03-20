@@ -11,10 +11,12 @@ interface Stats {
 }
 
 function formatBurned(n: number) {
-  if (n >= 1e12) return (n / 1e12).toFixed(2) + 'T'
-  if (n >= 1e9)  return (n / 1e9).toFixed(1) + 'B'
-  if (n >= 1e6)  return (n / 1e6).toFixed(1) + 'M'
-  return n.toLocaleString()
+  // Raw value stored with 6 decimal places (SPL token standard)
+  const num = n / 1_000_000
+  if (num >= 1e9)  return (num / 1e9).toFixed(2) + 'B'
+  if (num >= 1e6)  return (num / 1e6).toFixed(2) + 'M'
+  if (num >= 1e3)  return (num / 1e3).toFixed(1) + 'K'
+  return num.toLocaleString()
 }
 
 export default function PlatformStats() {
