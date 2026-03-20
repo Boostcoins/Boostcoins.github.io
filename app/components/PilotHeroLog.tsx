@@ -27,9 +27,9 @@ function timeAgo(date: string) {
 }
 
 function formatBurned(n: string | number): string {
-  const num = typeof n === 'string' ? parseInt(n, 10) : n
-  if (isNaN(num) || num === 0) return '0'
-  if (num >= 1e12) return `${(num / 1e12).toFixed(1)}T`
+  const raw = typeof n === 'string' ? parseInt(n, 10) : n
+  if (isNaN(raw) || raw === 0) return '0'
+  const num = raw / 1_000_000
   if (num >= 1e9) return `${(num / 1e9).toFixed(1)}B`
   if (num >= 1e6) return `${(num / 1e6).toFixed(1)}M`
   if (num >= 1e3) return `${(num / 1e3).toFixed(1)}K`
@@ -57,7 +57,12 @@ export default function PilotHeroLog() {
 
         if (log) {
           const sentences = log.body.match(/[^.!?]+[.!?]+/g) || [log.body]
-          const trimmed = sentences.map(s => s.trim()).filter(s => s.length > 0).slice(0, 3)
+          const trimmed = sentences
+            .map(s => s.trim())
+            .filter(s => s.length > 4)
+            // filter out sentences with raw large numbers or SOL amounts that look wrong
+            .filter(s => !/\d{6,}/.test(s) && !/\d+\.\d{4,}/.test(s))
+            .slice(0, 2)
           for (const s of trimmed) {
             result.push({ text: s })
           }
