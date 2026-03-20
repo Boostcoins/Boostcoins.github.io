@@ -34,6 +34,9 @@ import { supabaseAdmin } from './supabase'
 const RPC_URL = process.env.RPC_URL || 'https://api.mainnet-beta.solana.com'
 const MIN_CLAIM_SOL = parseFloat(process.env.MIN_CLAIM_SOL || '0.01')
 
+const PILOT_FEE_FRACTION = 0.02
+const PILOT_MINT = new PublicKey(process.env.NEXT_PUBLIC_PILOT_CA || '6AdmZxzpX6gG1bmKkVnP7g59nfK71GK1LeihzczRpump')
+
 // ─── Mood-aware strategy picker ───────────────────────────────────────────────
 
 // Mood → strategy mapping
@@ -274,6 +277,66 @@ async function doBuyback(
   return { buySol, burnedAmount }
 }
 
+// ─── PILOT platform fee buyback ──────────────────────────────────────────────
+
+async function doPilotBuyback(
+  connection: Connection,
+  keypair: Keypair,
+  feeLamports: number,
+  txs: string[],
+  tag: string
+): Promise<void> {
+  if (feeLamports < 10_000) return
+
+  const feeSol = feeLamports / 1e9
+  console.log(`${tag} [PILOT] buying back ${feeSol.toFixed(6)} SOL worth of $PILOT`)
+
+  try {
+    const sdk = new OnlinePumpSdk(connection)
+    const pilotTokenProgram = await getTokenProgramForMint(connection, PILOT_MINT)
+    const isMigrated = await checkMigration(connection, PILOT_MINT)
+    const ata = getAssociatedTokenAddressSync(PILOT_MINT, keypair.publicKey, true, pilotTokenProgram)
+    const buyBn = new BN(Math.floor(feeLamports))
+
+    if (isMigrated) {
+      const onlineAmm = new OnlinePumpAmmSdk(connection)
+      const poolPda = canonicalPumpPoolPda(PILOT_MINT)
+      const swapState = await onlineAmm.swapSolanaState(poolPda, keypair.publicKey, ata)
+      const buyIx = await PUMP_AMM_SDK.buyQuoteInput(swapState, buyBn, 5)
+      appendV2Account(buyIx as unknown as Ix[], PUMP_AMM_PROGRAM_ID, poolV2Pda(PILOT_MINT))
+      const sig = await sendTx(connection, new Transaction().add(...(buyIx as unknown as import('@solana/web3.js').TransactionInstruction[])), keypair)
+      console.log(`${tag} [PILOT] AMM buy tx: ${sig}`)
+      txs.push(sig)
+    } else {
+      const global = await sdk.fetchGlobal()
+      const buyState = await sdk.fetchBuyState(PILOT_MINT, keypair.publicKey, pilotTokenProgram)
+      const amount = getBuyTokenAmountFromSolAmount({
+        global, feeConfig: null,
+        mintSupply: buyState.bondingCurve.tokenTotalSupply,
+        bondingCurve: buyState.bondingCurve,
+        amount: buyBn,
+      })
+      const buyIx = await PUMP_SDK.buyInstructions({
+        global, bondingCurveAccountInfo: buyState.bondingCurveAccountInfo,
+        bondingCurve: buyState.bondingCurve,
+        associatedUserAccountInfo: buyState.associatedUserAccountInfo,
+        mint: PILOT_MINT, user: keypair.publicKey,
+        amount, solAmount: buyBn, slippage: 2, tokenProgram: pilotTokenProgram,
+      })
+      appendV2Account(buyIx as unknown as Ix[], PUMP_PROGRAM_ID, bondingCurveV2Pda(PILOT_MINT))
+      const sig = await sendTx(connection, new Transaction().add(...(buyIx as unknown as import('@solana/web3.js').TransactionInstruction[])), keypair)
+      console.log(`${tag} [PILOT] bonding curve buy tx: ${sig}`)
+      txs.push(sig)
+    }
+
+    await new Promise((r) => setTimeout(r, 2000))
+    console.log(`${tag} [PILOT] buyback complete`)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error(`${tag} [PILOT] buyback failed (non-fatal): ${msg}`)
+  }
+}
+
 // ─── Main exported function ───────────────────────────────────────────────────
 
 const MIN_WALLET_SOL_FOR_FEES = 0.005 // wallet needs this much SOL to pay for tx fees
@@ -342,12 +405,21 @@ export async function runOnChainCycle(
   await new Promise((r) => setTimeout(r, 2000))
 
   const txFeeSol = 0.002
-  const availableLamports = Math.max(0, Math.floor(balanceSol * 1e9) - txFeeSol * 1e9)
+  let availableLamports = Math.max(0, Math.floor(balanceSol * 1e9) - txFeeSol * 1e9)
 
   if (availableLamports <= 0) {
     console.log(`${tag} nothing left after gas reserve — cycle done`)
     await saveStats(agentId, balanceSol, 0, '0', 0, 'none', tag)
     return { success: true, message: 'claimed fees, nothing left after gas', strategy: 'none' }
+  }
+
+  // Step 2.5: PILOT platform fee — 2% of claimed fees go to $PILOT buyback
+  const isPilotAgent = mint.equals(PILOT_MINT)
+  if (!isPilotAgent && availableLamports > 50_000) {
+    const pilotFeeLamports = Math.floor(availableLamports * PILOT_FEE_FRACTION)
+    console.log(`${tag} [PILOT] routing ${(pilotFeeLamports / 1e9).toFixed(6)} SOL (2%) to $PILOT buyback`)
+    await doPilotBuyback(connection, keypair, pilotFeeLamports, txs, tag)
+    availableLamports -= pilotFeeLamports
   }
 
   // Step 3: Detect token program + check migration status
