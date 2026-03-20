@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { getWalletBalance } from '@/lib/wallet'
 import CopyAddress from '../components/CopyAddress'
 import WalletActions from '../components/WalletActions'
+import ApiKeyManager from '../components/ApiKeyManager'
 
 function daysAlive(created: string) {
   return Math.floor((Date.now() - new Date(created).getTime()) / (1000 * 60 * 60 * 24))
@@ -185,6 +186,9 @@ export default async function Dashboard() {
             </div>
           ))}
         </div>
+
+        {/* api keys */}
+        <ApiKeyManager />
 
         {/* tips */}
         <div className="rounded-xl px-5 py-4" style={{ background: 'rgba(59,110,245,0.04)', border: '1px solid rgba(59,110,245,0.1)' }}>
