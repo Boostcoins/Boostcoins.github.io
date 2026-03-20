@@ -56,11 +56,12 @@ function pickStrategy(mood?: string): Strategy {
   if (MOOD_BUYBACK.has(m)) return { name: 'buyback', buybackFraction: 1.0, lpFraction: 0.0 }
   if (MOOD_LP.has(m))      return { name: 'lp',      buybackFraction: 0.0, lpFraction: 1.0 }
 
-  // Unknown/neutral mood → weighted random between burn and buyback
+    // Unknown/neutral mood → weighted random including LP
   const roll = Math.random()
-  if (roll < 0.45) return { name: 'burn',     buybackFraction: 1.0, lpFraction: 0.0 }
-  if (roll < 0.75) return { name: 'buyback',  buybackFraction: 1.0, lpFraction: 0.0 }
-  return               { name: 'balanced',  buybackFraction: 0.5, lpFraction: 0.5 }
+  if (roll < 0.40) return { name: 'burn',     buybackFraction: 1.0, lpFraction: 0.0 }
+  if (roll < 0.70) return { name: 'buyback',  buybackFraction: 1.0, lpFraction: 0.0 }
+  if (roll < 0.85) return { name: 'balanced', buybackFraction: 0.5, lpFraction: 0.5 }
+  return               { name: 'lp',       buybackFraction: 0.0, lpFraction: 1.0 }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

@@ -41,6 +41,7 @@ export async function runThinkCycle(agent: AgentConfig): Promise<ThinkResult | n
       .from('inputs')
       .select('content')
       .eq('agent_id', agent.id)
+      .is('read_at', null)
       .order('created_at', { ascending: false })
       .limit(20),
     supabaseAdmin
@@ -190,15 +191,16 @@ respond ONLY with valid JSON:
       .eq('id', agent.id)
     if (agentErr) console.error(`${tag} failed to update agent mood: ${agentErr.message}`)
 
-    // Clear inputs that were read so they're not repeated in the next think cycle
+    // Mark inputs as read so they don't repeat in the next think cycle
+    // but keep them in DB so they remain visible on the agent page
     if (inputs.length > 0) {
-      const { error: clearErr } = await supabaseAdmin
+      const { error: markErr } = await supabaseAdmin
         .from('inputs')
-        .delete()
+        .update({ read_at: new Date().toISOString() })
         .eq('agent_id', agent.id)
-        .lt('created_at', new Date().toISOString())
-      if (clearErr) console.error(`${tag} failed to clear inputs: ${clearErr.message}`)
-      else console.log(`${tag} cleared ${inputs.length} processed input(s)`)
+        .is('read_at', null)
+      if (markErr) console.error(`${tag} failed to mark inputs as read: ${markErr.message}`)
+      else console.log(`${tag} marked ${inputs.length} input(s) as read`)
     }
 
     console.log(`${tag} think cycle complete`)
