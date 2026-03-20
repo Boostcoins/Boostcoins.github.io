@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { runThinkCycle } from '@/lib/agent'
 import { runOnChainCycle } from '@/lib/solana'
+import { sendCycleNotification } from '@/lib/notify'
+
+const PILOT_AGENT_ID = process.env.PILOT_AGENT_ID
 
 // Vercel calls this with Authorization: Bearer <CRON_SECRET>
 export async function GET(req: NextRequest) {
@@ -90,6 +93,25 @@ export async function GET(req: NextRequest) {
       })
 
       console.log(`${agentTag} done — think: ${thinkResult ? 'ok' : 'failed'} | chain: ${chainResult.success ? 'ok' : `failed (${chainResult.message})`}`)
+
+      // Send email notification for pilot agent or any failed cycle
+      const isPilot = PILOT_AGENT_ID && agent.id === PILOT_AGENT_ID
+      const hasFailed = !chainResult.success || !thinkResult
+      if (isPilot || hasFailed) {
+        const r = chainResult as { success: boolean; message: string; strategy?: string; burned?: string; lpSol?: number; txs?: string[] }
+        await sendCycleNotification({
+          agentId:    agent.id,
+          agentName:  agent.name,
+          strategy:   r.strategy ?? 'unknown',
+          claimedSol: r.lpSol ?? 0,
+          burned:     r.burned ?? '0',
+          lpSol:      r.lpSol ?? 0,
+          txs:        r.txs ?? [],
+          success:    r.success,
+          error:      r.success ? undefined : r.message,
+          thinkOk:    !!thinkResult,
+        }).catch(() => {})
+      }
 
       return {
         id: agent.id,
