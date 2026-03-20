@@ -205,7 +205,7 @@ export async function POST(req: NextRequest) {
     tx.recentBlockhash = blockhash
     tx.feePayer = keypair.publicKey
 
-    const sig = await sendAndConfirmTransaction(connection, tx, [keypair, mint, agentKeypair], {
+    const sig = await sendAndConfirmTransaction(connection, tx, [keypair, mint], {
       skipPreflight: false,
       preflightCommitment: 'processed',
     })
