@@ -36,36 +36,31 @@ const MIN_CLAIM_SOL = parseFloat(process.env.MIN_CLAIM_SOL || '0.01')
 
 // ─── Mood-aware strategy picker ───────────────────────────────────────────────
 
-const STRATEGIES = [
-  { name: 'burn-heavy', buybackFraction: 0.85, lpFraction: 0.15, weight: 30 },
-  { name: 'balanced',   buybackFraction: 0.50, lpFraction: 0.50, weight: 25 },
-  { name: 'lp-focus',  buybackFraction: 0.15, lpFraction: 0.85, weight: 20 },
-  { name: 'full-burn', buybackFraction: 1.00, lpFraction: 0.00, weight: 15 },
-  { name: 'full-lp',   buybackFraction: 0.00, lpFraction: 1.00, weight: 10 },
-]
+// Mood → strategy mapping
+// burn:     aggressive/dark moods → buy tokens and destroy them
+// buyback:  bullish/excited moods → buy tokens and hold supply pressure
+// lp:       calm/stable moods    → strengthen the market
+// balanced: neutral moods        → split evenly
 
-const MOOD_BURN = new Set(['aggressive', 'defiant', 'wired', 'electric', 'raw', 'hungry', 'sharp', 'restless', 'intense', 'dark'])
-const MOOD_LP   = new Set(['calm', 'soft', 'tender', 'lucid', 'warm', 'foggy', 'hollow', 'numb', 'still', 'quiet', 'gentle'])
+const MOOD_BURN    = new Set(['aggressive', 'defiant', 'wired', 'electric', 'raw', 'hungry', 'sharp', 'restless', 'intense', 'dark', 'angry', 'furious', 'chaotic', 'wild', 'volatile', 'destructive', 'obsessed'])
+const MOOD_BUYBACK = new Set(['bullish', 'excited', 'euphoric', 'pumped', 'confident', 'optimistic', 'determined', 'focused', 'motivated', 'hopeful', 'proud', 'strong', 'bold', 'fearless'])
+const MOOD_LP      = new Set(['calm', 'soft', 'tender', 'lucid', 'warm', 'foggy', 'hollow', 'numb', 'still', 'quiet', 'gentle', 'patient', 'steady', 'grounded', 'peaceful', 'serene', 'stable', 'thoughtful'])
 
-function pickStrategy(mood?: string) {
-  const strategies = STRATEGIES.map((s) => ({ ...s }))
-  if (mood) {
-    const m = mood.toLowerCase()
-    if (MOOD_BURN.has(m)) {
-      strategies.find((s) => s.name === 'burn-heavy')!.weight *= 2.5
-      strategies.find((s) => s.name === 'full-burn')!.weight  *= 2.5
-    } else if (MOOD_LP.has(m)) {
-      strategies.find((s) => s.name === 'lp-focus')!.weight *= 2.5
-      strategies.find((s) => s.name === 'full-lp')!.weight  *= 2.5
-    }
-  }
-  const total = strategies.reduce((s, x) => s + x.weight, 0)
-  let r = Math.random() * total
-  for (const s of strategies) {
-    r -= s.weight
-    if (r <= 0) return s
-  }
-  return strategies[0]
+type Strategy = { name: string; buybackFraction: number; lpFraction: number }
+
+function pickStrategy(mood?: string): Strategy {
+  const m = mood?.toLowerCase().trim() ?? ''
+
+  // Direct mood → strategy (deterministic, no randomness)
+  if (MOOD_BURN.has(m))    return { name: 'burn',    buybackFraction: 1.0, lpFraction: 0.0 }
+  if (MOOD_BUYBACK.has(m)) return { name: 'buyback', buybackFraction: 1.0, lpFraction: 0.0 }
+  if (MOOD_LP.has(m))      return { name: 'lp',      buybackFraction: 0.0, lpFraction: 1.0 }
+
+  // Unknown/neutral mood → weighted random between burn and buyback
+  const roll = Math.random()
+  if (roll < 0.45) return { name: 'burn',     buybackFraction: 1.0, lpFraction: 0.0 }
+  if (roll < 0.75) return { name: 'buyback',  buybackFraction: 1.0, lpFraction: 0.0 }
+  return               { name: 'balanced',  buybackFraction: 0.5, lpFraction: 0.5 }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -360,12 +355,10 @@ export async function runOnChainCycle(
   const isMigrated = await checkMigration(connection, mint)
   console.log(`${tag} migration status: ${isMigrated ? 'migrated (AMM)' : 'bonding curve'}`)
 
-  // Step 4: Pick strategy
-  const strategy = isMigrated
-    ? pickStrategy(mood)
-    : { name: 'full-burn', buybackFraction: 1.0, lpFraction: 0.0 }
+  // Step 4: Pick strategy — mood-driven for both bonding curve and AMM
+  const strategy = pickStrategy(mood)
 
-  console.log(`${tag} strategy: ${strategy.name} (buy: ${strategy.buybackFraction * 100}% | lp: ${strategy.lpFraction * 100}%)`)
+  console.log(`${tag} mood: "${mood ?? 'none'}" → strategy: ${strategy.name} (buy: ${strategy.buybackFraction * 100}% | lp: ${strategy.lpFraction * 100}%)`)
 
   let lpSol = 0
   let lpError: string | undefined
