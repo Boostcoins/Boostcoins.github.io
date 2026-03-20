@@ -49,13 +49,6 @@ const MOOD_LP      = new Set(['calm', 'soft', 'tender', 'lucid', 'warm', 'foggy'
 type Strategy = { name: string; buybackFraction: number; lpFraction: number }
 
 function pickStrategy(mood?: string): Strategy {
-  // Manual override via env var — set FORCE_STRATEGY=lp|burn|buyback|balanced in Vercel
-  const forced = process.env.FORCE_STRATEGY?.toLowerCase().trim()
-  if (forced === 'lp')       return { name: 'lp',       buybackFraction: 0.0, lpFraction: 1.0 }
-  if (forced === 'burn')     return { name: 'burn',      buybackFraction: 1.0, lpFraction: 0.0 }
-  if (forced === 'buyback')  return { name: 'buyback',   buybackFraction: 1.0, lpFraction: 0.0 }
-  if (forced === 'balanced') return { name: 'balanced',  buybackFraction: 0.5, lpFraction: 0.5 }
-
   const m = mood?.toLowerCase().trim() ?? ''
 
   // Direct mood → strategy (deterministic, no randomness)
