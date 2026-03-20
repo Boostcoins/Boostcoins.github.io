@@ -4,16 +4,19 @@ const NOTIFY_EMAIL = process.env.NOTIFY_EMAIL || 'scone-melodi.0y@icloud.com'
 const NOTIFY_FROM  = process.env.NOTIFY_FROM  || 'pilot <onboarding@resend.dev>'
 
 interface CycleNotifyOptions {
-  agentId:   string
-  agentName: string
-  strategy:  string
+  agentId:    string
+  agentName:  string
+  tokenName?: string
+  tokenCa?:   string
+  strategy:   string
   claimedSol: number
-  burned:    string
-  lpSol:     number
-  txs:       string[]
-  success:   boolean
-  error?:    string
-  thinkOk:   boolean
+  burned:     string
+  lpSol:      number
+  txs:        string[]
+  success:    boolean
+  error?:     string
+  thinkOk:    boolean
+  mood?:      string
 }
 
 function formatBurned(n: string | number): string {
@@ -29,8 +32,16 @@ export async function sendCycleNotification(opts: CycleNotifyOptions) {
   if (!process.env.RESEND_API_KEY || !NOTIFY_EMAIL) return
   const resend = new Resend(process.env.RESEND_API_KEY)
 
+  // Fetch cumulative stats
+  const { supabaseAdmin } = await import('./supabase')
+  const { data: cumulative } = await supabaseAdmin
+    .from('agent_stats')
+    .select('total_claimed, total_burned, total_lp, last_strategy')
+    .eq('agent_id', opts.agentId)
+    .single()
+
   const status = opts.success ? '✅ cycle ok' : '❌ cycle failed'
-  const subject = `[pilot] ${opts.agentName} — ${status}`
+  const subject = `[pilot] ${opts.agentName} — ${status} — ${opts.strategy}${opts.mood ? ` (${opts.mood})` : ''}`
 
   const now = new Date()
   const timeStr = now.toUTCString()
@@ -77,42 +88,67 @@ export async function sendCycleNotification(opts: CycleNotifyOptions) {
   <div style="padding:24px 28px">
 
     <!-- agent info -->
-    <div style="margin-bottom:24px">
+    <div style="margin-bottom:20px">
       <p style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:0 0 6px">agent</p>
-      <p style="font-size:18px;font-weight:700;color:#111;margin:0 0 2px;letter-spacing:-0.02em">${opts.agentName}</p>
+      <p style="font-size:18px;font-weight:700;color:#111;margin:0 0 4px;letter-spacing:-0.02em">${opts.agentName}</p>
+      ${opts.tokenName ? `<p style="font-size:12px;color:#888;margin:0 0 4px;font-family:monospace">$${opts.tokenName}</p>` : ''}
+      ${opts.tokenCa ? `<p style="font-size:10px;color:#bbb;margin:0 0 6px;font-family:monospace">${opts.tokenCa}</p>` : ''}
       <a href="https://www.giveyourcoinapilot.fun/agent/${opts.agentId}" style="font-size:11px;color:#3b6ef5;text-decoration:none">view on pilot →</a>
     </div>
 
-    <div style="height:1px;background:#f0f0ee;margin-bottom:24px"></div>
+    <div style="height:1px;background:#f0f0ee;margin-bottom:20px"></div>
 
     <!-- this cycle -->
     <p style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:0 0 12px">this cycle</p>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
       <tr style="background:#fafaf8">
         <td style="padding:10px 12px;font-size:11px;color:#888;width:160px;border-bottom:1px solid #f0f0ee">strategy</td>
-        <td style="padding:10px 12px;font-size:12px;font-weight:600;color:#111;border-bottom:1px solid #f0f0ee">${opts.strategy}</td>
+        <td style="padding:10px 12px;font-size:12px;font-weight:700;color:#3b6ef5;border-bottom:1px solid #f0f0ee">${opts.strategy}</td>
+      </tr>
+      ${opts.mood ? `<tr>
+        <td style="padding:10px 12px;font-size:11px;color:#888;border-bottom:1px solid #f0f0ee">mood</td>
+        <td style="padding:10px 12px;font-size:12px;color:#111;border-bottom:1px solid #f0f0ee">${opts.mood}</td>
+      </tr>` : ''}
+      <tr style="background:#fafaf8">
+        <td style="padding:10px 12px;font-size:11px;color:#888;border-bottom:1px solid #f0f0ee">sol claimed from vault</td>
+        <td style="padding:10px 12px;font-size:12px;font-weight:600;color:#111;border-bottom:1px solid #f0f0ee">${opts.claimedSol > 0 ? opts.claimedSol.toFixed(6) + ' SOL' : '—'}</td>
       </tr>
       <tr>
-        <td style="padding:10px 12px;font-size:11px;color:#888;border-bottom:1px solid #f0f0ee">sol claimed</td>
-        <td style="padding:10px 12px;font-size:12px;color:#111;border-bottom:1px solid #f0f0ee">${opts.claimedSol > 0 ? opts.claimedSol.toFixed(6) + ' SOL' : '—'}</td>
-      </tr>
-      <tr style="background:#fafaf8">
         <td style="padding:10px 12px;font-size:11px;color:#888;border-bottom:1px solid #f0f0ee">tokens burned</td>
-        <td style="padding:10px 12px;font-size:12px;color:#111;border-bottom:1px solid #f0f0ee">${Number(opts.burned) > 0 ? formatBurned(opts.burned) + ' tokens' : '—'}</td>
-      </tr>
-      <tr>
-        <td style="padding:10px 12px;font-size:11px;color:#888;border-bottom:1px solid #f0f0ee">sol to LP</td>
-        <td style="padding:10px 12px;font-size:12px;color:#111;border-bottom:1px solid #f0f0ee">${opts.lpSol > 0 ? opts.lpSol.toFixed(6) + ' SOL' : '—'}</td>
+        <td style="padding:10px 12px;font-size:12px;font-weight:600;color:#111;border-bottom:1px solid #f0f0ee">${Number(opts.burned) > 0 ? formatBurned(opts.burned) + ' tokens' : '—'}</td>
       </tr>
       <tr style="background:#fafaf8">
+        <td style="padding:10px 12px;font-size:11px;color:#888;border-bottom:1px solid #f0f0ee">sol added to LP</td>
+        <td style="padding:10px 12px;font-size:12px;font-weight:600;color:#111;border-bottom:1px solid #f0f0ee">${opts.lpSol > 0 ? opts.lpSol.toFixed(6) + ' SOL' : '—'}</td>
+      </tr>
+      <tr>
         <td style="padding:10px 12px;font-size:11px;color:#888;border-bottom:1px solid #f0f0ee">transactions</td>
         <td style="padding:10px 12px;font-size:12px;color:#111;border-bottom:1px solid #f0f0ee">${opts.txs.length} tx${opts.txs.length !== 1 ? 's' : ''}</td>
       </tr>
-      <tr>
+      <tr style="background:#fafaf8">
         <td style="padding:10px 12px;font-size:11px;color:#888">think cycle</td>
         <td style="padding:10px 12px;font-size:12px;font-weight:600;color:${opts.thinkOk ? '#16a34a' : '#dc2626'}">${opts.thinkOk ? '✓ ok' : '✗ failed'}</td>
       </tr>
     </table>
+
+    <!-- cumulative totals -->
+    ${cumulative ? `
+    <div style="height:1px;background:#f0f0ee;margin-bottom:20px"></div>
+    <p style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:0 0 12px">cumulative totals</p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
+      <tr style="background:#fafaf8">
+        <td style="padding:10px 12px;font-size:11px;color:#888;width:160px;border-bottom:1px solid #f0f0ee">total sol claimed</td>
+        <td style="padding:10px 12px;font-size:12px;font-weight:600;color:#111;border-bottom:1px solid #f0f0ee">${Number(cumulative.total_claimed).toFixed(4)} SOL</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 12px;font-size:11px;color:#888;border-bottom:1px solid #f0f0ee">total tokens burned</td>
+        <td style="padding:10px 12px;font-size:12px;font-weight:600;color:#111;border-bottom:1px solid #f0f0ee">${formatBurned(cumulative.total_burned)} tokens</td>
+      </tr>
+      <tr style="background:#fafaf8">
+        <td style="padding:10px 12px;font-size:11px;color:#888">total sol to LP</td>
+        <td style="padding:10px 12px;font-size:12px;font-weight:600;color:#111">${Number(cumulative.total_lp).toFixed(4)} SOL</td>
+      </tr>
+    </table>` : ''}
 
     ${opts.error ? `
     <!-- error -->

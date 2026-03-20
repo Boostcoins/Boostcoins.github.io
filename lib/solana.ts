@@ -283,7 +283,7 @@ export async function runOnChainCycle(
   encryptedPrivateKey: string,
   mintAddress: string,
   mood?: string
-): Promise<{ success: boolean; message: string; strategy?: string; burned?: string; lpSol?: number; txs?: string[] }> {
+): Promise<{ success: boolean; message: string; strategy?: string; claimedSol?: number; burned?: string; lpSol?: number; txs?: string[] }> {
   const tag = `[CHAIN:${agentId}]`
   console.log(`${tag} starting on-chain cycle — mint: ${mintAddress} | mood: ${mood ?? 'none'}`)
 
@@ -407,6 +407,7 @@ export async function runOnChainCycle(
     success: true,
     message: msg,
     strategy: strategy.name,
+    claimedSol: balanceSol,
     burned: burnedAmount,
     lpSol,
     txs,

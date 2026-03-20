@@ -98,18 +98,21 @@ export async function GET(req: NextRequest) {
       const isPilot = PILOT_AGENT_ID && agent.id === PILOT_AGENT_ID
       const hasFailed = !chainResult.success || !thinkResult
       if (isPilot || hasFailed) {
-        const r = chainResult as { success: boolean; message: string; strategy?: string; burned?: string; lpSol?: number; txs?: string[] }
+        const r = chainResult as { success: boolean; message: string; strategy?: string; claimedSol?: number; burned?: string; lpSol?: number; txs?: string[] }
         await sendCycleNotification({
           agentId:    agent.id,
           agentName:  agent.name,
+          tokenName:  agent.token_name,
+          tokenCa:    agent.token_ca,
           strategy:   r.strategy ?? 'unknown',
-          claimedSol: r.lpSol ?? 0,
+          claimedSol: r.claimedSol ?? 0,
           burned:     r.burned ?? '0',
           lpSol:      r.lpSol ?? 0,
           txs:        r.txs ?? [],
           success:    r.success,
           error:      r.success ? undefined : r.message,
           thinkOk:    !!thinkResult,
+          mood:       thinkResult?.mood,
         }).catch(() => {})
       }
 
