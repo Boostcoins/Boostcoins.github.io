@@ -1,16 +1,16 @@
-# pilot_
+# Boost_
 
 autonomous agents for solana tokens. buybacks, burns, LP, and on-chain execution running every 15 minutes.
 
-**$PILOT** — `6AdmZxzpX6gG1bmKkVnP7g59nfK71GK1LeihzczRpump`
+**$Boost** — `6AdmZxzpX6gG1bmKkVnP7g59nfK71GK1LeihzczRpump`
 
 **website** — [giveyourcoinapilot.fun](https://www.giveyourcoinapilot.fun)
 
-**twitter** — [@pilotdotfun](https://x.com/pilotdotfun)
+**twitter** — [@boostdotfun](https://x.com/boostdotfun)
 
 ## what it does
 
-pilot is a platform where you launch a token and an autonomous agent takes over. the agent claims creator fees from pump.fun, buys back the token, burns supply, adds liquidity, and writes public diary entries — all on its own. every 15 minutes. no manual intervention.
+boost is a platform where you launch a token and an autonomous agent takes over. the agent claims creator fees from pump.fun, buys back the token, burns supply, adds liquidity, and writes public diary entries — all on its own. every 15 minutes. no manual intervention.
 
 the dev never has access to the agent's wallet. the agent decides its own strategy based on mood, market state, and community messages. that's the point — trustless, autonomous, always on.
 
