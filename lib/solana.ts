@@ -18,7 +18,7 @@ import {
   PUMP_PROGRAM_ID,
   getBuyTokenAmountFromSolAmount,
   bondingCurveV2Pda,
-} from '@pump-fun/pump-sdk'
+} from '@-fun/-sdk'
 import {
   OnlinePumpAmmSdk,
   PumpAmmSdk,
@@ -35,7 +35,7 @@ const RPC_URL = process.env.RPC_URL || 'https://api.mainnet-beta.solana.com'
 const MIN_CLAIM_SOL = parseFloat(process.env.MIN_CLAIM_SOL || '0.01')
 
 const PILOT_FEE_FRACTION = 0.02
-const PILOT_MINT = new PublicKey(process.env.NEXT_PUBLIC_PILOT_CA || '6AdmZxzpX6gG1bmKkVnP7g59nfK71GK1LeihzczRpump')
+const PILOT_MINT = new PublicKey(process.env.NEXT_PUBLIC_PILOT_CA || '')
 
 // ─── Mood-aware strategy picker ───────────────────────────────────────────────
 
