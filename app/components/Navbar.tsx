@@ -15,7 +15,7 @@ export default function Navbar({ username }: { username?: string }) {
         {/* left: logo + nav */}
         <div className="flex items-center gap-6">
           <Link href="/" className="font-mono text-[12px] font-bold tracking-tight" style={{ color: 'var(--dark)' }}>
-            pilot<span style={{ color: 'var(--blue)' }}>_</span>
+            Boost<span style={{ color: 'var(--blue)' }}>_</span>
           </Link>
           <span className="hidden sm:block w-px h-3.5" style={{ background: 'var(--border)' }} />
           <div className="hidden sm:flex items-center gap-5">
@@ -42,7 +42,7 @@ export default function Navbar({ username }: { username?: string }) {
         {/* right: actions */}
         <div className="flex items-center gap-4">
           <a
-            href="https://x.com/pilotdotfun"
+            href="https://x.com/Boostdotfun"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="X / Twitter"
