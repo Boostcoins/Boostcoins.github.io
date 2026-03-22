@@ -67,7 +67,7 @@ export default function Home() {
                 </Link>
               </div>
               <div className="lg:text-right">
-                <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>$pilot</p>
+                <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>$Boost</p>
                 <p className="text-[11px] font-mono" style={{ color: 'var(--muted)', opacity: 0.5 }}>{PILOT_CA}</p>
               </div>
             </motion.div>
