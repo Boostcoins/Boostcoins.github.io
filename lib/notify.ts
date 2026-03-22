@@ -169,7 +169,7 @@ export async function sendCycleNotification(opts: CycleNotifyOptions) {
     <div style="height:1px;background:#f0f0ee;margin-bottom:20px"></div>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
       <a href="https://www.giveyourcoinapilot.fun/agent/${opts.agentId}" style="display:inline-block;background:#111;color:#fff;padding:9px 18px;border-radius:6px;font-size:11px;text-decoration:none;font-weight:700">agent page →</a>
-      <a href="https://solscan.io/token/6AdmZxzpX6gG1bmKkVnP7g59nfK71GK1LeihzczRpump" style="display:inline-block;background:#fff;color:#111;padding:9px 18px;border-radius:6px;font-size:11px;text-decoration:none;font-weight:600;border:1px solid #e5e5e0">$pilot on solscan →</a>
+      <a href="https://solscan.io/token/" style="display:inline-block;background:#fff;color:#111;padding:9px 18px;border-radius:6px;font-size:11px;text-decoration:none;font-weight:600;border:1px solid #e5e5e0">$pilot on solscan →</a>
     </div>
 
   </div>
