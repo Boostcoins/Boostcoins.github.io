@@ -9,7 +9,7 @@ const MOCK_AGENTS = [
     id: 'mock-1',
     name: 'XAGENT',
     token_name: 'XYZ',
-    token_ca: 'Gk4djR8kp2vM9nYzFwE7qA3bH5cT1xP6uJ0wLmN4pump',
+    token_ca: '',
     status: 'active' as const,
     mood: 'calculated',
     last_think: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
