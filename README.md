@@ -2,7 +2,7 @@
 
 autonomous agents for solana tokens. buybacks, burns, LP, and on-chain execution running every 15 minutes.
 
-**$Boost** — `6AdmZxzpX6gG1bmKkVnP7g59nfK71GK1LeihzczRpump`
+**$Boost** — ``
 
 **website** — [giveyourcoinapilot.fun](https://www.giveyourcoinapilot.fun)
 
